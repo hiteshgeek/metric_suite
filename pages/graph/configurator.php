@@ -55,7 +55,7 @@ $basePath = get_base_path();
         new GraphConfigurator(container, {
             saveEndpoint: basePath + '/api/graph.php',
             apiEndpoint: basePath + '/api/data.php',
-            schemaEndpoint: basePath + '/api/schema.php',
+            schemaEndpoint: basePath + '/api/schema-cache.php',
         });
     </script>
 

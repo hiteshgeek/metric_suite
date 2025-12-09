@@ -18,7 +18,7 @@ function get_base_path()
     $parts = explode('/', trim($scriptDir, '/'));
 
     // Known subdirectory names that are NOT the root
-    $subDirs = ['usage', 'file-uploader', 'file-carousel', 'media-capture', 'utils', 'projects', 'api', 'pages', 'graph', 'counter', 'list', 'table', 'links'];
+    $subDirs = ['usage', 'file-uploader', 'file-carousel', 'media-capture', 'utils', 'projects', 'api', 'pages', 'graph', 'counter', 'list', 'table', 'links', 'admin'];
 
     // Walk backwards removing subdirectories until we find the root
     while (!empty($parts) && in_array(end($parts), $subDirs)) {

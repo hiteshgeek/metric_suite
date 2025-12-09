@@ -18,7 +18,7 @@ export class SchemaExplorer {
     }
 
     this.options = {
-      schemaEndpoint: options.schemaEndpoint || '/api/schema.php',
+      schemaEndpoint: options.schemaEndpoint || '/api/schema-cache.php',
       onTableSelect: options.onTableSelect || null,
       onColumnSelect: options.onColumnSelect || null,
       onInsertQuery: options.onInsertQuery || null,
