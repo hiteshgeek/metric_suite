@@ -6,10 +6,12 @@ const gulpLoadPlugins = require("gulp-load-plugins");
 const plugins = gulpLoadPlugins();
 const noop = require("gulp-noop");
 const uglify = require("gulp-uglify-es").default;
-const rollup = require("gulp-better-rollup");
+const rollupStream = require("@rollup/stream");
 const rollupBabel = require("@rollup/plugin-babel").default;
 const rollupResolve = require("@rollup/plugin-node-resolve").default;
 const rollupCommonjs = require("@rollup/plugin-commonjs");
+const source = require("vinyl-source-stream");
+const buffer = require("vinyl-buffer");
 const sass = require("gulp-sass")(require("sass"));
 const javascriptObfuscator = require("gulp-javascript-obfuscator");
 const path = require("path");
@@ -96,16 +98,16 @@ async function runPipeline(entries, taskFn) {
 
 function addAllStyles(done) {
   const entries = styleEntries.map(([srcArr, outName]) =>
-      gulp
-        .src(srcArr)
-        .pipe(plugins.plumber({ errorHandler: onError }))
-        .pipe(useSourceMaps() ? plugins.sourcemaps.init() : noop())
-        .pipe(sass())
-        .pipe(plugins.concat(outName))
-        .pipe(isProduction() ? plugins.cleanCss() : noop())
-        .pipe(rev())
-        .pipe(useSourceMaps() ? plugins.sourcemaps.write(".") : noop())
-        .pipe(gulp.dest(config.cssOutDir))
+    gulp
+      .src(srcArr)
+      .pipe(plugins.plumber({ errorHandler: onError }))
+      .pipe(useSourceMaps() ? plugins.sourcemaps.init() : noop())
+      .pipe(sass())
+      .pipe(plugins.concat(outName))
+      .pipe(isProduction() ? plugins.cleanCss() : noop())
+      .pipe(rev())
+      .pipe(useSourceMaps() ? plugins.sourcemaps.write(".") : noop())
+      .pipe(gulp.dest(config.cssOutDir))
   );
   return require("merge-stream")(...entries)
     .pipe(rev.manifest(config.cssManifestPath))
@@ -116,35 +118,33 @@ function addAllStyles(done) {
 
 function addAllScriptsESM() {
   const entries = scriptEntries.map(([srcArr, outName]) =>
-      gulp
-        .src(srcArr)
-        .pipe(plugins.plumber({ errorHandler: onError }))
-        .pipe(useSourceMaps() ? plugins.sourcemaps.init() : noop())
-        .pipe(
-          rollup(
-            {
-              plugins: [
-                rollupResolve({ browser: true }),
-                rollupCommonjs(),
-                rollupBabel({
-                  babelHelpers: "bundled",
-                  babelrc: false,
-                  exclude: "node_modules/**",
-                }),
-              ],
-            },
-            {
-              format: "esm",
-              inlineDynamicImports: true, // Inline dynamic imports to avoid code-splitting
-            }
-          )
-        )
-        .pipe(plugins.concat(outName))
-        .pipe(isProduction() ? uglify() : noop())
-        .pipe(isProduction() ? javascriptObfuscator() : noop())
-        .pipe(rev())
-        .pipe(useSourceMaps() ? plugins.sourcemaps.write(".") : noop())
-        .pipe(gulp.dest(config.jsOutDir))
+    rollupStream({
+      input: srcArr[0],
+      plugins: [
+        rollupResolve({ browser: true }),
+        rollupCommonjs(),
+        rollupBabel({
+          babelHelpers: "bundled",
+          babelrc: false,
+          exclude: "node_modules/**",
+        }),
+      ],
+      output: {
+        format: "esm",
+        inlineDynamicImports: true,
+      },
+    })
+      .pipe(source(outName))
+      .pipe(buffer())
+      .pipe(plugins.plumber({ errorHandler: onError }))
+      .pipe(
+        useSourceMaps() ? plugins.sourcemaps.init({ loadMaps: true }) : noop()
+      )
+      .pipe(isProduction() ? uglify() : noop())
+      .pipe(isProduction() ? javascriptObfuscator() : noop())
+      .pipe(rev())
+      .pipe(useSourceMaps() ? plugins.sourcemaps.write(".") : noop())
+      .pipe(gulp.dest(config.jsOutDir))
   );
   return require("merge-stream")(...entries)
     .pipe(rev.manifest(config.jsManifestPath))
@@ -158,38 +158,37 @@ const iifeNames = {
 };
 
 function addAllScriptsIIFE() {
-  const entries = scriptEntries.map(([srcArr, outName]) =>
-      gulp
-        .src(srcArr)
-        .pipe(plugins.plumber({ errorHandler: onError }))
-        .pipe(useSourceMaps() ? plugins.sourcemaps.init() : noop())
-        .pipe(
-          rollup(
-            {
-              plugins: [
-                rollupResolve({ browser: true }),
-                rollupCommonjs(),
-                rollupBabel({
-                  babelHelpers: "bundled",
-                  babelrc: false,
-                  exclude: "node_modules/**",
-                }),
-              ],
-            },
-            {
-              format: "iife",
-              name: iifeNames[outName] || undefined, // Only use name for library entries
-              inlineDynamicImports: true, // Inline dynamic imports for IIFE compatibility
-            }
-          )
-        )
-        .pipe(plugins.concat(outName.replace(/\.js$/, ".iife.js")))
-        .pipe(isProduction() ? uglify() : noop())
-        .pipe(isProduction() ? javascriptObfuscator() : noop())
-        .pipe(rev())
-        .pipe(useSourceMaps() ? plugins.sourcemaps.write(".") : noop())
-        .pipe(gulp.dest(config.jsOutDir))
-  );
+  const entries = scriptEntries.map(([srcArr, outName]) => {
+    const iifeOutName = outName.replace(/\.js$/, ".iife.js");
+    return rollupStream({
+      input: srcArr[0],
+      plugins: [
+        rollupResolve({ browser: true }),
+        rollupCommonjs(),
+        rollupBabel({
+          babelHelpers: "bundled",
+          babelrc: false,
+          exclude: "node_modules/**",
+        }),
+      ],
+      output: {
+        format: "iife",
+        name: iifeNames[outName] || undefined,
+        inlineDynamicImports: true,
+      },
+    })
+      .pipe(source(iifeOutName))
+      .pipe(buffer())
+      .pipe(plugins.plumber({ errorHandler: onError }))
+      .pipe(
+        useSourceMaps() ? plugins.sourcemaps.init({ loadMaps: true }) : noop()
+      )
+      .pipe(isProduction() ? uglify() : noop())
+      .pipe(isProduction() ? javascriptObfuscator() : noop())
+      .pipe(rev())
+      .pipe(useSourceMaps() ? plugins.sourcemaps.write(".") : noop())
+      .pipe(gulp.dest(config.jsOutDir));
+  });
   return require("merge-stream")(...entries)
     .pipe(rev.manifest(config.jsManifestPath, { merge: true }))
     .pipe(gulp.dest("."));
@@ -214,18 +213,14 @@ gulp.task("clean", async function () {
 });
 
 const styleEntries = [
-  [[config.libCssDir + "/index.scss"], "media-hub.css"],
+  [[config.libCssDir + "/main.scss"], "metric-suite.css"],
   [[config.assetsCssDir + "/main.scss"], "main.css"],
 ];
 
 const scriptEntries = [
-  [[config.libJsDir + "/index.js"], "media-hub.js"],
-  [[config.assetsJsDir + "/main.js"], "main.js"],
-  [[config.assetsJsDir + "/bootstrap_3.js"], "bootstrap_3.js"],
-  [[config.assetsJsDir + "/bootstrap_4.js"], "bootstrap_4.js"],
-  [[config.assetsJsDir + "/bootstrap_5.js"], "bootstrap_5.js"],
+  [[config.libJsDir + "/index.js"], "metric-suite.js"],
+  [[config.assetsJsDir + "/index.js"], "main.js"],
 ];
-
 
 gulp.task("styles", gulp.series("clean-css", addAllStyles));
 
