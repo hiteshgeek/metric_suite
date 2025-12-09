@@ -26,7 +26,7 @@ class Database
             return;
         }
 
-        $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+        $dotenv = Dotenv::createUnsafeImmutable(__DIR__ . '/..');
         $dotenv->safeLoad();
         self::$envLoaded = true;
     }
@@ -39,10 +39,10 @@ class Database
         if (self::$msConnection === null) {
             self::loadEnv();
 
-            $host = $_ENV['MS_DB_HOST'] ?? 'localhost';
-            $name = $_ENV['MS_DB_NAME'] ?? 'metric_suite';
-            $user = $_ENV['MS_DB_USER'] ?? 'root';
-            $pass = $_ENV['MS_DB_PASS'] ?? '';
+            $host = getenv('MS_DB_HOST') ?: 'localhost';
+            $name = getenv('MS_DB_NAME') ?: 'metric_suite';
+            $user = getenv('MS_DB_USER') ?: 'root';
+            $pass = getenv('MS_DB_PASS') ?: '';
 
             $dsn = "mysql:host={$host};dbname={$name};charset=utf8mb4";
 
@@ -64,10 +64,10 @@ class Database
         if (self::$mainConnection === null) {
             self::loadEnv();
 
-            $host = $_ENV['MAIN_DB_HOST'] ?? 'localhost';
-            $name = $_ENV['MAIN_DB_NAME'] ?? '';
-            $user = $_ENV['MAIN_DB_USER'] ?? 'root';
-            $pass = $_ENV['MAIN_DB_PASS'] ?? '';
+            $host = getenv('MAIN_DB_HOST') ?: 'localhost';
+            $name = getenv('MAIN_DB_NAME') ?: '';
+            $user = getenv('MAIN_DB_USER') ?: 'root';
+            $pass = getenv('MAIN_DB_PASS') ?: '';
 
             if (empty($name)) {
                 throw new Exception('MAIN_DB_NAME is not configured in .env');

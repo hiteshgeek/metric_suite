@@ -59,11 +59,12 @@ function getCachedSchema($tableName = null)
     }
 
     // Get all tables
-    $stmt = $pdo->query("SELECT table_name, schema_json, cached_at FROM schema_cache ORDER BY table_name");
+    $stmt = $pdo->query("SELECT database_name, table_name, schema_json, cached_at FROM schema_cache ORDER BY table_name");
     $rows = $stmt->fetchAll();
 
     $tables = [];
     $cachedAt = null;
+    $dbName = null;
 
     foreach ($rows as $row) {
         $schema = json_decode($row['schema_json'], true);
@@ -73,12 +74,14 @@ function getCachedSchema($tableName = null)
             'comment' => $schema['comment'] ?? ''
         ];
         $cachedAt = $row['cached_at'];
+        $dbName = $row['database_name'];
     }
 
     return [
         'success' => true,
         'tables' => $tables,
         'cached_at' => $cachedAt,
+        'database' => $dbName,
         'from_cache' => true
     ];
 }
@@ -90,7 +93,7 @@ function refreshSchemaCache()
 {
     $mainPdo = Database::getMainConnection();
     $cachePdo = Database::getMetricSuiteConnection();
-    $dbName = $_ENV['MAIN_DB_NAME'];
+    $dbName = getenv('MAIN_DB_NAME');
 
     // Get all tables
     $stmt = $mainPdo->prepare("

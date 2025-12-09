@@ -5,6 +5,19 @@
 import { defaultColors } from '../utils.js';
 
 /**
+ * Get current theme colors from CSS variables
+ */
+function getThemeColors() {
+  const style = getComputedStyle(document.documentElement);
+  return {
+    text: style.getPropertyValue('--ms-text').trim() || '#1e293b',
+    textSecondary: style.getPropertyValue('--ms-text-secondary').trim() || '#64748b',
+    border: style.getPropertyValue('--ms-border').trim() || '#e2e8f0',
+    bg: style.getPropertyValue('--ms-bg').trim() || '#ffffff',
+  };
+}
+
+/**
  * Default bar chart options
  */
 const defaultOptions = {
@@ -37,6 +50,7 @@ const defaultOptions = {
 export function generateBarConfig(options = {}) {
   const opts = { ...defaultOptions, ...options };
   const isHorizontal = opts.orientation === 'horizontal';
+  const theme = getThemeColors();
 
   // Build series data
   let seriesData = [];
@@ -86,26 +100,39 @@ export function generateBarConfig(options = {}) {
     axisLabel: {
       rotate: opts.xAxis?.rotate || 0,
       interval: opts.xAxis?.interval ?? 'auto',
+      color: theme.text,
     },
     axisLine: {
       lineStyle: {
-        color: '#e2e8f0',
+        color: theme.border,
       },
     },
     axisTick: {
       alignWithLabel: true,
+      lineStyle: {
+        color: theme.border,
+      },
     },
   };
 
   const valueAxis = {
     type: 'value',
     name: opts.yAxis?.name || '',
+    nameTextStyle: {
+      color: theme.textSecondary,
+    },
     axisLabel: {
       formatter: opts.yAxis?.formatter || undefined,
+      color: theme.text,
+    },
+    axisLine: {
+      lineStyle: {
+        color: theme.border,
+      },
     },
     splitLine: {
       lineStyle: {
-        color: '#e2e8f0',
+        color: theme.border,
         type: 'dashed',
       },
     },
@@ -120,11 +147,11 @@ export function generateBarConfig(options = {}) {
       textStyle: {
         fontSize: 16,
         fontWeight: 600,
-        color: '#1e293b',
+        color: theme.text,
       },
       subtextStyle: {
         fontSize: 12,
-        color: '#64748b',
+        color: theme.textSecondary,
       },
     },
     tooltip: opts.tooltip
@@ -133,11 +160,11 @@ export function generateBarConfig(options = {}) {
           axisPointer: {
             type: 'shadow',
           },
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          borderColor: '#e2e8f0',
+          backgroundColor: theme.bg,
+          borderColor: theme.border,
           borderWidth: 1,
           textStyle: {
-            color: '#1e293b',
+            color: theme.text,
           },
         }
       : { show: false },
@@ -148,6 +175,9 @@ export function generateBarConfig(options = {}) {
           top: opts.legendPosition === 'top' ? 30 : opts.legendPosition === 'bottom' ? 'auto' : 'middle',
           bottom: opts.legendPosition === 'bottom' ? 10 : 'auto',
           orient: opts.legendPosition === 'left' || opts.legendPosition === 'right' ? 'vertical' : 'horizontal',
+          textStyle: {
+            color: theme.text,
+          },
         }
       : { show: false },
     grid: opts.grid,

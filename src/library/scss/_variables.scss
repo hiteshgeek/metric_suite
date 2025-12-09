@@ -27,6 +27,10 @@
   --ms-border: #e2e8f0;
   --ms-border-hover: #cbd5e1;
 
+  // Code editor colors (light mode)
+  --ms-code-bg: #1e293b;
+  --ms-code-text: #e2e8f0;
+
   // Typography
   --ms-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   --ms-font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
@@ -101,6 +105,10 @@
   --ms-border: #334155;
   --ms-border-hover: #475569;
 
+  // Code editor colors (dark mode)
+  --ms-code-bg: #0f172a;
+  --ms-code-text: #e2e8f0;
+
   // Shadows (adjusted for dark)
   --ms-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --ms-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
@@ -136,6 +144,10 @@
     --ms-text-muted: #64748b;
     --ms-border: #334155;
     --ms-border-hover: #475569;
+
+    // Code editor colors (dark mode)
+    --ms-code-bg: #0f172a;
+    --ms-code-text: #e2e8f0;
 
     // Shadows (adjusted for dark)
     --ms-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);

@@ -74,7 +74,11 @@ export class Graph {
           ...this.options.xAxis,
           data: data.map(item => item[xKey]),
         };
-        this.options.data = data.map(item => item[yKey]);
+        // Convert y values to numbers (they may come as strings from DB)
+        this.options.data = data.map(item => {
+          const val = item[yKey];
+          return typeof val === 'string' ? parseFloat(val) : val;
+        });
       } else {
         // Simple array of values
         this.options.data = data;

@@ -4,7 +4,7 @@
  * Helps build queries with autocomplete
  */
 
-import { generateId } from '../Graph/utils.js';
+// Typeahead-based schema explorer
 
 export class SchemaExplorer {
   constructor(container, options = {}) {
@@ -51,33 +51,28 @@ export class SchemaExplorer {
             </svg>
             Database Schema
           </h3>
-          <button type="button" class="ms-schema-explorer__refresh" title="Refresh schema">
+        </div>
+
+        <div class="ms-schema-explorer__typeahead">
+          <div class="ms-schema-explorer__typeahead-input">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-              <path d="M16 21h5v-5"/>
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
             </svg>
-          </button>
+            <input
+              type="text"
+              class="ms-input"
+              placeholder="Search tables..."
+              autocomplete="off"
+            />
+          </div>
+          <ul class="ms-schema-explorer__dropdown"></ul>
         </div>
 
-        <div class="ms-schema-explorer__search">
-          <input
-            type="text"
-            class="ms-input"
-            placeholder="Search tables..."
-            id="schema-search-${generateId()}"
-          />
-        </div>
+        <div class="ms-schema-explorer__selected-table"></div>
 
-        <div class="ms-schema-explorer__content">
-          <div class="ms-schema-explorer__tables">
-            <div class="ms-schema-explorer__loading">Loading tables...</div>
-          </div>
-
-          <div class="ms-schema-explorer__details" style="display: none;">
-            <div class="ms-schema-explorer__details-content"></div>
-          </div>
+        <div class="ms-schema-explorer__details">
+          <div class="ms-schema-explorer__details-content"></div>
         </div>
       </div>
     `;
@@ -86,17 +81,56 @@ export class SchemaExplorer {
   }
 
   bindEvents() {
-    // Search
-    const searchInput = this.container.querySelector('.ms-schema-explorer__search input');
-    searchInput?.addEventListener('input', (e) => this.filterTables(e.target.value));
+    const searchInput = this.container.querySelector('.ms-schema-explorer__typeahead input');
+    const dropdown = this.container.querySelector('.ms-schema-explorer__dropdown');
 
-    // Refresh
-    const refreshBtn = this.container.querySelector('.ms-schema-explorer__refresh');
-    refreshBtn?.addEventListener('click', () => this.refresh());
+    // Show dropdown on focus if there's text
+    searchInput?.addEventListener('focus', () => {
+      if (searchInput.value.trim()) {
+        this.filterTables(searchInput.value);
+      }
+    });
+
+    // Filter on input
+    searchInput?.addEventListener('input', (e) => {
+      this.filterTables(e.target.value);
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!this.container.querySelector('.ms-schema-explorer__typeahead')?.contains(e.target)) {
+        dropdown.classList.remove('is-open');
+      }
+    });
+
+    // Keyboard navigation
+    searchInput?.addEventListener('keydown', (e) => {
+      const items = dropdown.querySelectorAll('.ms-schema-explorer__dropdown-item');
+      const activeItem = dropdown.querySelector('.ms-schema-explorer__dropdown-item.is-active');
+      let activeIndex = Array.from(items).indexOf(activeItem);
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        items.forEach((item, i) => item.classList.toggle('is-active', i === activeIndex));
+        items[activeIndex]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        items.forEach((item, i) => item.classList.toggle('is-active', i === activeIndex));
+        items[activeIndex]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter' && activeItem) {
+        e.preventDefault();
+        this.selectTable(activeItem.dataset.table);
+        dropdown.classList.remove('is-open');
+      } else if (e.key === 'Escape') {
+        dropdown.classList.remove('is-open');
+      }
+    });
   }
 
   async loadTables() {
-    const tablesContainer = this.container.querySelector('.ms-schema-explorer__tables');
+    const searchInput = this.container.querySelector('.ms-schema-explorer__typeahead input');
 
     try {
       const response = await fetch(this.options.schemaEndpoint);
@@ -108,10 +142,18 @@ export class SchemaExplorer {
 
       this.tables = data.tables || [];
       this.databaseName = data.database;
-      this.renderTables();
+
+      // Update placeholder with table count
+      if (searchInput) {
+        searchInput.placeholder = `Search ${this.tables.length} tables...`;
+      }
+
+      // Show database name
+      this.renderDatabaseInfo();
 
     } catch (error) {
-      tablesContainer.innerHTML = `
+      const selectedTable = this.container.querySelector('.ms-schema-explorer__selected-table');
+      selectedTable.innerHTML = `
         <div class="ms-schema-explorer__error">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
@@ -122,6 +164,21 @@ export class SchemaExplorer {
         </div>
       `;
     }
+  }
+
+  renderDatabaseInfo() {
+    const selectedTable = this.container.querySelector('.ms-schema-explorer__selected-table');
+    selectedTable.innerHTML = `
+      <div class="ms-schema-explorer__db-info">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/>
+          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+        </svg>
+        <span>${this.databaseName || 'Database'}</span>
+        <span class="ms-schema-explorer__table-count">${this.tables.length} tables</span>
+      </div>
+    `;
   }
 
   async loadRelationships() {
@@ -137,65 +194,96 @@ export class SchemaExplorer {
     }
   }
 
-  renderTables() {
-    const tablesContainer = this.container.querySelector('.ms-schema-explorer__tables');
+  filterTables(searchTerm) {
+    const term = searchTerm.toLowerCase().trim();
+    const dropdown = this.container.querySelector('.ms-schema-explorer__dropdown');
 
-    if (this.tables.length === 0) {
-      tablesContainer.innerHTML = `
-        <div class="ms-schema-explorer__empty">
-          No tables found in database
-        </div>
-      `;
+    // If search is empty, hide dropdown
+    if (!term) {
+      dropdown.classList.remove('is-open');
+      dropdown.innerHTML = '';
       return;
     }
 
-    tablesContainer.innerHTML = `
-      <div class="ms-schema-explorer__db-name">
+    // Filter matching tables
+    const filtered = this.tables.filter(table =>
+      table.name.toLowerCase().includes(term)
+    ).slice(0, 10); // Limit to 10 results
+
+    if (filtered.length === 0) {
+      dropdown.innerHTML = `
+        <li class="ms-schema-explorer__dropdown-empty">No matching tables</li>
+      `;
+      dropdown.classList.add('is-open');
+      return;
+    }
+
+    dropdown.innerHTML = filtered.map((table, index) => `
+      <li class="ms-schema-explorer__dropdown-item${index === 0 ? ' is-active' : ''}" data-table="${table.name}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <ellipse cx="12" cy="5" rx="9" ry="3"/>
-          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18"/>
+          <path d="M9 21V9"/>
         </svg>
-        ${this.databaseName}
-      </div>
-      <ul class="ms-schema-explorer__table-list">
-        ${this.tables.map(table => `
-          <li class="ms-schema-explorer__table-item" data-table="${table.name}">
-            <div class="ms-schema-explorer__table-name">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <path d="M3 9h18"/>
-                <path d="M9 21V9"/>
-              </svg>
-              <span>${table.name}</span>
-              ${this.relationships[table.name] ? `
-                <span class="ms-schema-explorer__fk-badge" title="Has foreign keys">FK</span>
-              ` : ''}
-            </div>
-            <span class="ms-schema-explorer__row-count">${this.formatRowCount(table.row_count)}</span>
-          </li>
-        `).join('')}
-      </ul>
-    `;
+        <span class="ms-schema-explorer__dropdown-name">${this.highlightMatch(table.name, term)}</span>
+        <span class="ms-schema-explorer__dropdown-count">${this.formatRowCount(table.row_count)}</span>
+      </li>
+    `).join('');
+
+    dropdown.classList.add('is-open');
 
     // Bind click events
-    tablesContainer.querySelectorAll('.ms-schema-explorer__table-item').forEach(item => {
-      item.addEventListener('click', () => this.selectTable(item.dataset.table));
+    dropdown.querySelectorAll('.ms-schema-explorer__dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        this.selectTable(item.dataset.table);
+        dropdown.classList.remove('is-open');
+      });
+
+      item.addEventListener('mouseenter', () => {
+        dropdown.querySelectorAll('.ms-schema-explorer__dropdown-item').forEach(i => i.classList.remove('is-active'));
+        item.classList.add('is-active');
+      });
     });
   }
 
-  async selectTable(tableName) {
-    // Update selected state
-    this.container.querySelectorAll('.ms-schema-explorer__table-item').forEach(item => {
-      item.classList.toggle('is-selected', item.dataset.table === tableName);
-    });
+  highlightMatch(text, term) {
+    const index = text.toLowerCase().indexOf(term.toLowerCase());
+    if (index === -1) return text;
+    return text.substring(0, index) +
+      '<mark>' + text.substring(index, index + term.length) + '</mark>' +
+      text.substring(index + term.length);
+  }
 
+  async selectTable(tableName) {
     this.selectedTable = tableName;
 
+    // Update search input with selected table
+    const searchInput = this.container.querySelector('.ms-schema-explorer__typeahead input');
+    if (searchInput) {
+      searchInput.value = tableName;
+    }
+
+    // Update selected table display
+    const selectedTableEl = this.container.querySelector('.ms-schema-explorer__selected-table');
+    selectedTableEl.innerHTML = `
+      <div class="ms-schema-explorer__current-table">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18"/>
+          <path d="M9 21V9"/>
+        </svg>
+        <span>${tableName}</span>
+        <button type="button" class="ms-schema-explorer__clear-table" title="Clear selection">×</button>
+      </div>
+    `;
+
+    // Bind clear button
+    selectedTableEl.querySelector('.ms-schema-explorer__clear-table')?.addEventListener('click', () => {
+      this.clearSelection();
+    });
+
     // Show details panel
-    const detailsPanel = this.container.querySelector('.ms-schema-explorer__details');
     const detailsContent = this.container.querySelector('.ms-schema-explorer__details-content');
-    detailsPanel.style.display = 'block';
     detailsContent.innerHTML = '<div class="ms-schema-explorer__loading">Loading...</div>';
 
     try {
@@ -226,9 +314,32 @@ export class SchemaExplorer {
     }
   }
 
+  clearSelection() {
+    this.selectedTable = null;
+
+    // Clear search input
+    const searchInput = this.container.querySelector('.ms-schema-explorer__typeahead input');
+    if (searchInput) {
+      searchInput.value = '';
+    }
+
+    // Reset to database info
+    this.renderDatabaseInfo();
+
+    // Clear details
+    const detailsContent = this.container.querySelector('.ms-schema-explorer__details-content');
+    detailsContent.innerHTML = '';
+  }
+
   renderTableDetails(tableName) {
     const details = this.tableDetails[tableName];
     const detailsContent = this.container.querySelector('.ms-schema-explorer__details-content');
+
+    // Ensure arrays exist with defaults
+    details.columns = details.columns || [];
+    details.foreignKeys = details.foreignKeys || [];
+    details.referencedBy = details.referencedBy || [];
+    details.sampleData = details.sampleData || [];
 
     detailsContent.innerHTML = `
       <div class="ms-schema-explorer__table-header">
@@ -371,24 +482,9 @@ export class SchemaExplorer {
     });
   }
 
-  filterTables(searchTerm) {
-    const term = searchTerm.toLowerCase();
-    this.container.querySelectorAll('.ms-schema-explorer__table-item').forEach(item => {
-      const tableName = item.dataset.table.toLowerCase();
-      item.style.display = tableName.includes(term) ? '' : 'none';
-    });
-  }
-
   async refresh() {
     this.tableDetails = {};
-    this.selectedTable = null;
-
-    const detailsPanel = this.container.querySelector('.ms-schema-explorer__details');
-    detailsPanel.style.display = 'none';
-
-    const tablesContainer = this.container.querySelector('.ms-schema-explorer__tables');
-    tablesContainer.innerHTML = '<div class="ms-schema-explorer__loading">Loading tables...</div>';
-
+    this.clearSelection();
     await this.loadTables();
     await this.loadRelationships();
   }
