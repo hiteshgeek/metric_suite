@@ -10,6 +10,7 @@ const rollupStream = require("@rollup/stream");
 const rollupBabel = require("@rollup/plugin-babel").default;
 const rollupResolve = require("@rollup/plugin-node-resolve").default;
 const rollupCommonjs = require("@rollup/plugin-commonjs");
+const rollupReplace = require("@rollup/plugin-replace");
 const source = require("vinyl-source-stream");
 const buffer = require("vinyl-buffer");
 const sass = require("gulp-sass")(require("sass"));
@@ -121,6 +122,10 @@ function addAllScriptsESM() {
     rollupStream({
       input: srcArr[0],
       plugins: [
+        rollupReplace({
+          preventAssignment: true,
+          'process.env.NODE_ENV': JSON.stringify(isProduction() ? 'production' : 'development'),
+        }),
         rollupResolve({ browser: true }),
         rollupCommonjs(),
         rollupBabel({
@@ -154,7 +159,7 @@ function addAllScriptsESM() {
 // IIFE output (for <script nomodule>)
 // Map entry names to IIFE global names (only libraries need a name, app entries don't)
 const iifeNames = {
-  "media-hub.js": "MetricSuite", // Library bundle - expose as global
+  "metric-suite.js": "MetricSuite", // Library bundle - expose as global
 };
 
 function addAllScriptsIIFE() {
@@ -163,6 +168,10 @@ function addAllScriptsIIFE() {
     return rollupStream({
       input: srcArr[0],
       plugins: [
+        rollupReplace({
+          preventAssignment: true,
+          'process.env.NODE_ENV': JSON.stringify(isProduction() ? 'production' : 'development'),
+        }),
         rollupResolve({ browser: true }),
         rollupCommonjs(),
         rollupBabel({
@@ -174,6 +183,7 @@ function addAllScriptsIIFE() {
       output: {
         format: "iife",
         name: iifeNames[outName] || undefined,
+        exports: "named",
         inlineDynamicImports: true,
       },
     })

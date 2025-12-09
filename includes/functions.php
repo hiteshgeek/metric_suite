@@ -18,7 +18,7 @@ function get_base_path()
     $parts = explode('/', trim($scriptDir, '/'));
 
     // Known subdirectory names that are NOT the root
-    $subDirs = ['usage', 'file-uploader', 'file-carousel', 'media-capture', 'utils', 'projects', 'api'];
+    $subDirs = ['usage', 'file-uploader', 'file-carousel', 'media-capture', 'utils', 'projects', 'api', 'pages', 'graph', 'counter', 'list', 'table', 'links'];
 
     // Walk backwards removing subdirectories until we find the root
     while (!empty($parts) && in_array(end($parts), $subDirs)) {
@@ -71,4 +71,14 @@ function asset($logical, $variant = null)
       }
       error_log("[asset] Asset not found in manifest: $logical (key: $manifestKey)");
       return $baseUrl . $logical;
+}
+
+/**
+ * Output favicon link tags
+ * Include this in the <head> of every page
+ */
+function favicon()
+{
+    $basePath = get_base_path();
+    echo '<link rel="icon" type="image/svg+xml" href="' . $basePath . '/assets/images/favicon.svg">';
 }

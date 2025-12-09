@@ -1,0 +1,24 @@
+// Application Styles
+// ========================================
+
+// Import library styles
+@use '../../library/scss/main';
+
+// Page-specific styles
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--ms-font-family);
+  background: var(--ms-bg-secondary);
+  color: var(--ms-text);
+  line-height: var(--ms-line-height);
+}
+
+#graph-configurator {
+  min-height: 100vh;
+}
