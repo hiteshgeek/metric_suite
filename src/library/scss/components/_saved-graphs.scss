@@ -343,10 +343,31 @@
   }
 }
 
-// Screenshot modal variant (wider)
+// Screenshot modal variant (larger to show full image without scrolling)
 .ms-modal--screenshot {
   .ms-modal__content {
-    max-width: 600px;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto;
+    overflow: hidden;
+  }
+
+  .ms-screenshot-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--ms-space-sm);
+    overflow: hidden;
+
+    img,
+    .ms-screenshot-preview__img {
+      display: block;
+      max-width: calc(90vw - 6rem);
+      max-height: calc(90vh - 12rem);
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
   }
 }
 
@@ -359,6 +380,7 @@
   display: flex;
   gap: var(--ms-space-sm);
   justify-content: flex-end;
+  padding-top: var(--ms-space-md);
 
   &--stacked {
     flex-direction: column;

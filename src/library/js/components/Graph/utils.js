@@ -3,13 +3,16 @@
  */
 
 /**
- * Deep merge objects
+ * Deep merge objects (arrays are replaced, not merged)
  */
 export function deepMerge(target, source) {
   const output = { ...target };
 
   for (const key in source) {
-    if (source[key] instanceof Object && key in target && target[key] instanceof Object) {
+    // Arrays should be replaced, not merged
+    if (Array.isArray(source[key])) {
+      output[key] = [...source[key]];
+    } else if (source[key] instanceof Object && key in target && target[key] instanceof Object && !Array.isArray(target[key])) {
       output[key] = deepMerge(target[key], source[key]);
     } else {
       output[key] = source[key];

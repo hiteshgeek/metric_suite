@@ -29,6 +29,7 @@ export class GraphConfigurator {
       saveEndpoint: options.saveEndpoint || '/api/graph.php',
       schemaEndpoint: options.schemaEndpoint || '/api/schema.php',
       colorsEndpoint: options.colorsEndpoint || '/api/colors.php',
+      thumbnailEndpoint: options.thumbnailEndpoint || '/api/graph-thumbnail.php',
       editId: options.editId || null,
       onSave: options.onSave || null,
       onExport: options.onExport || null,
@@ -67,15 +68,18 @@ export class GraphConfigurator {
     this.lastSavedState = null;
 
     // Screenshot settings (persisted in localStorage)
+    // Note: Screenshots are always saved to server, these settings control additional actions
     this.screenshotSettings = JSON.parse(localStorage.getItem('ms-screenshot-settings') || '{}');
     this.screenshotSettings = {
       download: this.screenshotSettings.download !== false,
       preview: this.screenshotSettings.preview || false,
-      store: this.screenshotSettings.store || false,
     };
 
     // Current screenshot data URL for modal
     this.currentScreenshot = null;
+
+    // Current thumbnail URL (loaded from server)
+    this.currentThumbnail = null;
 
     this._init();
   }
@@ -405,18 +409,29 @@ export class GraphConfigurator {
         title: 'Screenshot options',
       }),
       createElement('div', { className: 'ms-screenshot__dropdown', id: 'ms-screenshot-dropdown' }, [
+        // Thumbnail actions (shown when thumbnail exists)
+        createElement('div', { className: 'ms-screenshot__actions', id: 'ms-thumbnail-actions', style: 'display: none;' }, [
+          createElement('button', { className: 'ms-screenshot__action', id: 'ms-thumbnail-view', title: 'View thumbnail' }, [
+            createElement('span', { className: 'ms-screenshot__action-icon' }),
+            createElement('span', {}, ['View Thumbnail']),
+          ]),
+          createElement('button', { className: 'ms-screenshot__action ms-screenshot__action--danger', id: 'ms-thumbnail-delete', title: 'Delete thumbnail' }, [
+            createElement('span', { className: 'ms-screenshot__action-icon' }),
+            createElement('span', {}, ['Delete Thumbnail']),
+          ]),
+          createElement('div', { className: 'ms-screenshot__divider' }),
+        ]),
+        // Capture options
+        createElement('div', { className: 'ms-screenshot__options-label' }, ['On Capture']),
         createElement('label', { className: 'ms-screenshot__option' }, [
           createElement('input', { type: 'checkbox', id: 'ms-screenshot-download', checked: true }),
           createElement('span', {}, ['Download image']),
         ]),
         createElement('label', { className: 'ms-screenshot__option' }, [
-          createElement('input', { type: 'checkbox', id: 'ms-screenshot-preview' }),
+          createElement('input', { type: 'checkbox', id: 'ms-screenshot-show-preview' }),
           createElement('span', {}, ['Show preview']),
         ]),
-        createElement('label', { className: 'ms-screenshot__option' }, [
-          createElement('input', { type: 'checkbox', id: 'ms-screenshot-store' }),
-          createElement('span', {}, ['Save as thumbnail']),
-        ]),
+        createElement('div', { className: 'ms-screenshot__note' }, ['Screenshots are automatically saved to server']),
       ]),
     ]);
 
@@ -430,6 +445,20 @@ export class GraphConfigurator {
     screenshotBtn.querySelector('#ms-screenshot-toggle').innerHTML = `
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    `;
+    // View icon
+    screenshotBtn.querySelector('#ms-thumbnail-view .ms-screenshot__action-icon').innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    `;
+    // Delete icon
+    screenshotBtn.querySelector('#ms-thumbnail-delete .ms-screenshot__action-icon').innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
       </svg>
     `;
 
@@ -1541,6 +1570,9 @@ export class GraphConfigurator {
         if (this.state.query) {
           this._testQuery();
         }
+
+        // Load thumbnail if exists
+        this._loadThumbnail();
       } else {
         console.error('Failed to load config:', result.error);
         this._showToast('Failed to load graph configuration', 'error');
@@ -1979,6 +2011,10 @@ export class GraphConfigurator {
     // Update preview name
     this._updatePreviewName();
 
+    // Reset thumbnail
+    this.currentThumbnail = null;
+    this._updateThumbnailUI();
+
     // Show success toast
     this._showToast('Ready to create a new graph', 'info');
   }
@@ -1993,8 +2029,7 @@ export class GraphConfigurator {
 
     // Apply saved settings to checkboxes
     document.getElementById('ms-screenshot-download').checked = this.screenshotSettings.download;
-    document.getElementById('ms-screenshot-preview').checked = this.screenshotSettings.preview;
-    document.getElementById('ms-screenshot-store').checked = this.screenshotSettings.store;
+    document.getElementById('ms-screenshot-show-preview').checked = this.screenshotSettings.preview;
 
     // Main screenshot button
     screenshotBtn?.addEventListener('click', () => {
@@ -2015,14 +2050,29 @@ export class GraphConfigurator {
     });
 
     // Save settings on change
-    ['ms-screenshot-download', 'ms-screenshot-preview', 'ms-screenshot-store'].forEach(id => {
+    ['ms-screenshot-download', 'ms-screenshot-show-preview'].forEach(id => {
       const checkbox = document.getElementById(id);
       checkbox?.addEventListener('change', () => {
         this.screenshotSettings.download = document.getElementById('ms-screenshot-download').checked;
-        this.screenshotSettings.preview = document.getElementById('ms-screenshot-preview').checked;
-        this.screenshotSettings.store = document.getElementById('ms-screenshot-store').checked;
+        this.screenshotSettings.preview = document.getElementById('ms-screenshot-show-preview').checked;
         localStorage.setItem('ms-screenshot-settings', JSON.stringify(this.screenshotSettings));
       });
+    });
+
+    // View thumbnail button
+    document.getElementById('ms-thumbnail-view')?.addEventListener('click', () => {
+      if (this.currentThumbnail) {
+        this._showScreenshotModal(this.currentThumbnail);
+      }
+      dropdown?.classList.remove('is-open');
+    });
+
+    // Delete thumbnail button
+    document.getElementById('ms-thumbnail-delete')?.addEventListener('click', async () => {
+      if (this.state.id && this.currentThumbnail) {
+        await this._deleteThumbnail();
+      }
+      dropdown?.classList.remove('is-open');
     });
 
     // Screenshot modal events
@@ -2066,17 +2116,47 @@ export class GraphConfigurator {
       return;
     }
 
+    // Must save graph first to store screenshot on server
+    if (!this.state.id) {
+      this._showToast('Save the graph first to capture screenshot', 'warning');
+      return;
+    }
+
     try {
+      // Ensure chart is fully rendered before capturing
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Get data URL from ECharts
-      const dataUrl = this.graph.chart.getDataURL({
-        type: 'png',
-        pixelRatio: 2,
-        backgroundColor: '#fff',
-      });
+      const chart = this.graph.chart;
+      let dataUrl;
 
-      this.currentScreenshot = dataUrl;
+      // Try getDataURL first, fallback to getConnectedDataURL
+      try {
+        dataUrl = chart.getDataURL({
+          type: 'png',
+          pixelRatio: 2,
+          backgroundColor: '#fff',
+        });
+      } catch (e) {
+        // Fallback: try without options
+        dataUrl = chart.getDataURL();
+      }
 
-      const actions = [];
+      if (!dataUrl || !dataUrl.startsWith('data:image')) {
+        throw new Error('Failed to generate image data');
+      }
+
+      // Always store screenshot on server first
+      const storedUrl = await this._storeScreenshot(dataUrl);
+
+      if (!storedUrl) {
+        throw new Error('Failed to store screenshot on server');
+      }
+
+      // Use stored URL for all subsequent actions
+      this.currentScreenshot = storedUrl;
+
+      const actions = ['saved'];
 
       // Download if enabled
       if (this.screenshotSettings.download) {
@@ -2086,21 +2166,12 @@ export class GraphConfigurator {
 
       // Show preview if enabled
       if (this.screenshotSettings.preview) {
-        this._showScreenshotModal(dataUrl);
+        this._showScreenshotModal(storedUrl);
         actions.push('preview shown');
       }
 
-      // Store as thumbnail if enabled
-      if (this.screenshotSettings.store) {
-        await this._storeScreenshot(dataUrl);
-        actions.push('saved as thumbnail');
-      }
-
-      // Show toast if no actions were taken
-      if (actions.length === 0) {
-        this._showToast('Screenshot captured. Enable options to download, preview, or save.', 'info');
-      } else if (!this.screenshotSettings.preview) {
-        // Only show toast if preview is not shown (to avoid double notification)
+      // Show toast if preview is not shown (to avoid double notification)
+      if (!this.screenshotSettings.preview) {
         this._showToast(`Screenshot ${actions.join(', ')}`, 'success');
       }
 
@@ -2123,13 +2194,40 @@ export class GraphConfigurator {
 
   /**
    * Show screenshot preview modal
+   * @param {string} imageUrl - Data URL or server path to image
    */
-  _showScreenshotModal(dataUrl) {
+  _showScreenshotModal(imageUrl) {
     const modal = document.getElementById('ms-screenshot-modal');
     const preview = document.getElementById('ms-screenshot-preview');
 
+    console.log('Showing screenshot modal with URL:', imageUrl);
+    console.log('Modal element:', modal);
+    console.log('Preview element:', preview);
+
     if (modal && preview) {
-      preview.innerHTML = `<img src="${dataUrl}" alt="Screenshot preview" />`;
+      // Accept both data URLs and server paths
+      if (imageUrl && (imageUrl.startsWith('data:image') || imageUrl.startsWith('/') || imageUrl.startsWith('http'))) {
+        // Show loading state
+        preview.innerHTML = '<p style="color: var(--ms-text-secondary); padding: 2rem;">Loading...</p>';
+
+        const img = document.createElement('img');
+        img.alt = 'Screenshot preview';
+        img.className = 'ms-screenshot-preview__img';
+        img.onload = () => {
+          console.log('Image loaded successfully:', img.naturalWidth, 'x', img.naturalHeight);
+          preview.innerHTML = '';
+          preview.appendChild(img);
+        };
+        img.onerror = (e) => {
+          console.error('Failed to load image:', imageUrl, e);
+          preview.innerHTML = '<p style="color: var(--ms-text-secondary); padding: 2rem;">Failed to load image</p>';
+        };
+        // Set src after attaching handlers
+        img.src = imageUrl;
+      } else {
+        console.error('Invalid image URL format:', imageUrl);
+        preview.innerHTML = '<p style="color: var(--ms-text-secondary); padding: 2rem;">Failed to load screenshot</p>';
+      }
       modal.style.display = 'flex';
     }
   }
@@ -2146,15 +2244,16 @@ export class GraphConfigurator {
 
   /**
    * Store screenshot as thumbnail on server
+   * @param {string} dataUrl - Base64 encoded image data
+   * @returns {string|null} - Server URL of stored image or null on failure
    */
   async _storeScreenshot(dataUrl) {
     if (!this.state.id) {
-      this._showToast('Save the graph first to store thumbnail', 'warning');
-      return;
+      return null;
     }
 
     try {
-      const response = await fetch('/api/graph-thumbnail.php', {
+      const response = await fetch(this.options.thumbnailEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2164,12 +2263,76 @@ export class GraphConfigurator {
       });
 
       const result = await response.json();
+      console.log('Store screenshot response:', result);
       if (!result.success) {
         throw new Error(result.error || 'Failed to store thumbnail');
       }
+
+      // Update current thumbnail and UI
+      this.currentThumbnail = result.thumbnail;
+      console.log('Stored thumbnail URL:', this.currentThumbnail);
+      this._updateThumbnailUI();
+
+      return result.thumbnail;
     } catch (error) {
       console.error('Failed to store thumbnail:', error);
-      this._showToast('Failed to save thumbnail', 'error');
+      return null;
+    }
+  }
+
+  /**
+   * Delete thumbnail from server
+   */
+  async _deleteThumbnail() {
+    if (!this.state.id) return;
+
+    try {
+      const response = await fetch(`${this.options.thumbnailEndpoint}?id=${this.state.id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete thumbnail');
+      }
+
+      this.currentThumbnail = null;
+      this._updateThumbnailUI();
+      this._showToast('Thumbnail deleted', 'success');
+    } catch (error) {
+      console.error('Failed to delete thumbnail:', error);
+      this._showToast('Failed to delete thumbnail', 'error');
+    }
+  }
+
+  /**
+   * Update thumbnail actions visibility in dropdown
+   */
+  _updateThumbnailUI() {
+    const actionsEl = document.getElementById('ms-thumbnail-actions');
+    if (actionsEl) {
+      actionsEl.style.display = this.currentThumbnail ? 'block' : 'none';
+    }
+  }
+
+  /**
+   * Load thumbnail for current graph
+   */
+  async _loadThumbnail() {
+    if (!this.state.id) return;
+
+    try {
+      const response = await fetch(`${this.options.thumbnailEndpoint}?id=${this.state.id}`);
+      const result = await response.json();
+      console.log('Load thumbnail response:', result);
+
+      if (result.success && result.thumbnail) {
+        this.currentThumbnail = result.thumbnail;
+        console.log('Loaded thumbnail URL:', this.currentThumbnail);
+        this._updateThumbnailUI();
+      }
+    } catch (error) {
+      console.error('Failed to load thumbnail:', error);
     }
   }
 

@@ -65,6 +65,7 @@ $pageTitle = $editId ? 'Edit Graph' : 'Create Graph';
             apiEndpoint: basePath + '/api/data.php',
             schemaEndpoint: basePath + '/api/schema-cache.php',
             colorsEndpoint: basePath + '/api/colors.php',
+            thumbnailEndpoint: basePath + '/api/graph-thumbnail.php',
             editId: editId,
         });
     </script>

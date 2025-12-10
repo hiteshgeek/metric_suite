@@ -10,7 +10,7 @@
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 // Handle preflight
@@ -20,10 +20,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 // Thumbnail storage directory (relative to project root)
 define('THUMBNAIL_DIR', __DIR__ . '/../uploads/thumbnails');
-define('THUMBNAIL_URL_PATH', '/uploads/thumbnails');
+
+// Get base path for URL generation
+$basePath = get_base_path();
+define('THUMBNAIL_URL_PATH', $basePath . '/uploads/thumbnails');
 
 // Ensure thumbnail directory exists
 if (!is_dir(THUMBNAIL_DIR)) {
@@ -134,6 +138,45 @@ try {
                 'success' => true,
                 'message' => 'Thumbnail saved',
                 'thumbnail' => THUMBNAIL_URL_PATH . '/' . $filename
+            ]);
+            break;
+
+        case 'DELETE':
+            // Delete thumbnail
+            $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+
+            if (!$id) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Graph ID is required']);
+                exit;
+            }
+
+            // Get current thumbnail
+            $stmt = $pdo->prepare('SELECT thumbnail FROM graph_configs WHERE id = ?');
+            $stmt->execute([$id]);
+            $graph = $stmt->fetch();
+
+            if (!$graph) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Graph not found']);
+                exit;
+            }
+
+            // Delete file if exists
+            if ($graph['thumbnail']) {
+                $filepath = THUMBNAIL_DIR . '/' . $graph['thumbnail'];
+                if (file_exists($filepath)) {
+                    unlink($filepath);
+                }
+            }
+
+            // Clear thumbnail in database
+            $stmt = $pdo->prepare('UPDATE graph_configs SET thumbnail = NULL WHERE id = ?');
+            $stmt->execute([$id]);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Thumbnail deleted'
             ]);
             break;
 
