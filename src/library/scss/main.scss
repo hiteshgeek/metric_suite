@@ -6,8 +6,10 @@
 
 // Components
 @use 'components/graph';
+@use 'components/counter';
 @use 'components/index';
 @use 'components/theme-switcher';
 @use 'components/schema-explorer';
 @use 'components/color-palette';
 @use 'components/saved-graphs';
+@use 'components/preview-panel';

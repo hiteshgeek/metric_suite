@@ -1,0 +1,859 @@
+// Counter Component Styles
+// ========================================
+@use '../variables' as *;
+
+// CSS Custom Properties for Counter
+:root {
+  --counter-bg: var(--ms-bg);
+  --counter-fg: var(--ms-text);
+  --counter-accent: var(--ms-primary);
+}
+
+// Main Counter Container
+.ms-counter {
+  font-family: var(--ms-font-family);
+  background: var(--counter-bg);
+  color: var(--counter-fg);
+  border-radius: var(--ms-radius-lg);
+  padding: var(--ms-space-lg);
+  box-shadow: var(--ms-shadow-sm);
+  border: 1px solid var(--ms-border);
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+}
+
+// Counter Title
+.ms-counter__title {
+  font-size: var(--ms-font-size-lg);
+  font-weight: 600;
+  margin-bottom: var(--ms-space-md);
+  color: var(--counter-fg);
+  text-align: center;
+}
+
+// Counter Items Container
+.ms-counter__items {
+  display: flex;
+  gap: var(--ms-space-lg);
+  justify-content: stretch;
+  align-items: stretch;
+
+  &[data-count="1"] {
+    .ms-counter__item {
+      flex: 1;
+      max-width: 400px;
+    }
+  }
+
+  &[data-count="2"] {
+    .ms-counter__item {
+      flex: 1;
+    }
+  }
+
+  &[data-count="3"] {
+    .ms-counter__item {
+      flex: 1;
+    }
+  }
+}
+
+// Stack Layout (vertical list)
+.ms-counter--stack {
+  .ms-counter__items {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--ms-space-md);
+
+    &[data-count="1"],
+    &[data-count="2"],
+    &[data-count="3"] {
+      .ms-counter__item {
+        max-width: 100%;
+        width: 100%;
+      }
+    }
+  }
+
+  .ms-counter__item {
+    padding: var(--ms-space-md) var(--ms-space-lg);
+  }
+
+  .ms-counter__icon {
+    width: 44px;
+    height: 44px;
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+}
+
+// Grid Layout (2x2 for 3+ counters)
+.ms-counter--grid {
+  .ms-counter__items {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--ms-space-md);
+    justify-items: stretch;
+
+    &[data-count="3"] {
+      .ms-counter__item:last-child {
+        grid-column: span 2;
+      }
+    }
+  }
+
+  .ms-counter__item {
+    max-width: 100%;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--ms-space-lg);
+  }
+
+  .ms-counter__content {
+    align-items: center;
+  }
+
+  .ms-counter__label {
+    text-align: center;
+  }
+
+  .ms-counter__trend {
+    justify-content: center;
+  }
+}
+
+// Row-Featured Layout (one large, others small)
+.ms-counter--row-featured {
+  .ms-counter__items {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--ms-space-lg);
+  }
+
+  // Featured counter (always first in DOM order)
+  .ms-counter__item--featured {
+    flex: 2;
+    padding: var(--ms-space-xl);
+    border-color: var(--counter-accent);
+    border-width: 2px;
+
+    .ms-counter__icon {
+      width: 64px;
+      height: 64px;
+
+      svg {
+        width: 32px;
+        height: 32px;
+      }
+    }
+
+    .ms-counter__value {
+      font-size: var(--ms-font-size-3xl);
+    }
+
+    .ms-counter__label {
+      font-size: var(--ms-font-size-base);
+    }
+  }
+
+  // Non-featured counters
+  .ms-counter__item:not(.ms-counter__item--featured) {
+    flex: 1;
+    padding: var(--ms-space-md);
+
+    .ms-counter__icon {
+      width: 40px;
+      height: 40px;
+
+      svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    .ms-counter__value {
+      font-size: var(--ms-font-size-xl);
+    }
+
+    .ms-counter__label {
+      font-size: var(--ms-font-size-xs);
+    }
+  }
+
+  // Stack non-featured counters when 3 items
+  &[data-count="3"] .ms-counter__items {
+    flex-wrap: wrap;
+
+    .ms-counter__item--featured {
+      flex-basis: 50%;
+    }
+
+    .ms-counter__item:not(.ms-counter__item--featured) {
+      flex-basis: calc(50% - var(--ms-space-lg));
+    }
+  }
+}
+
+// Responsive stacking (auto-applied on narrow containers)
+.ms-counter--responsive-stack {
+  .ms-counter__items {
+    flex-direction: column !important;
+    display: flex !important;
+    grid-template-columns: unset !important;
+  }
+
+  .ms-counter__item {
+    max-width: 100% !important;
+    flex: none !important;
+    width: 100%;
+  }
+
+  // Reset featured styling on mobile
+  &.ms-counter--row-featured {
+    .ms-counter__item--featured {
+      padding: var(--ms-space-lg);
+      border-width: 1px;
+
+      .ms-counter__icon {
+        width: 48px;
+        height: 48px;
+
+        svg {
+          width: 24px;
+          height: 24px;
+        }
+      }
+
+      .ms-counter__value {
+        font-size: var(--ms-font-size-2xl);
+      }
+    }
+
+    .ms-counter__item:not(.ms-counter__item--featured) {
+      .ms-counter__value {
+        font-size: var(--ms-font-size-lg);
+      }
+    }
+  }
+}
+
+// Legacy support for vertical layout
+.ms-counter--vertical {
+  @extend .ms-counter--stack;
+}
+
+// Legacy stacked layout
+.ms-counter--stacked {
+  .ms-counter__items {
+    flex-direction: column;
+  }
+
+  .ms-counter__item {
+    max-width: 100% !important;
+  }
+}
+
+// Individual Counter Item (Card-based design)
+.ms-counter__item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--ms-space-md);
+  text-align: left;
+  padding: var(--ms-space-lg);
+  border-radius: var(--ms-radius-lg);
+  background: var(--ms-bg);
+  border: 1px solid var(--ms-border);
+  box-shadow: var(--ms-shadow-sm);
+  transition: all var(--ms-transition-base);
+
+  &:hover {
+    border-color: var(--ms-border-hover);
+    box-shadow: var(--ms-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  [data-theme="dark"] & {
+    background: var(--ms-bg-secondary);
+    border-color: var(--ms-border);
+
+    &:hover {
+      border-color: var(--ms-border-hover);
+    }
+  }
+}
+
+// Icon Wrapper (colored background container)
+.ms-counter__icon-wrapper {
+  flex-shrink: 0;
+}
+
+// Counter Icon
+.ms-counter__icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ms-radius-lg);
+  background: var(--counter-icon-color, var(--counter-accent));
+  color: white;
+
+  svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+// Content wrapper (holds label, value, trend)
+.ms-counter__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-xs);
+}
+
+// Value Container
+.ms-counter__value-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ms-space-xs);
+
+  .ms-counter--vertical & {
+    align-items: flex-start;
+    flex: 1;
+  }
+}
+
+// Counter Value
+.ms-counter__value {
+  font-size: var(--ms-font-size-2xl);
+  font-weight: 700;
+  color: var(--counter-fg);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+
+  .ms-counter--vertical &,
+  .ms-counter--stack & {
+    font-size: var(--ms-font-size-xl);
+  }
+}
+
+// Counter Label
+.ms-counter__label {
+  font-size: var(--ms-font-size-sm);
+  color: var(--ms-text-secondary);
+  font-weight: 500;
+  line-height: 1.3;
+  order: -1; // Put label at top
+}
+
+// Counter Subtitle
+.ms-counter__subtitle {
+  font-size: var(--ms-font-size-xs);
+  color: var(--ms-text-muted);
+  line-height: 1.4;
+}
+
+// Trend Indicator
+.ms-counter__trend {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-xs);
+  margin-top: var(--ms-space-xs);
+  flex-wrap: wrap;
+}
+
+.ms-counter__trend-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--ms-radius-full);
+  font-size: var(--ms-font-size-xs);
+  font-weight: 600;
+  background: var(--ms-bg-secondary);
+  color: var(--ms-text-secondary);
+
+  &--positive {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+
+    [data-theme="dark"] & {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+    }
+  }
+
+  &--negative {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+
+    [data-theme="dark"] & {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+  }
+}
+
+.ms-counter__trend-text {
+  font-size: var(--ms-font-size-xs);
+  color: var(--ms-text-muted);
+}
+
+// Placeholder
+.ms-counter__placeholder {
+  padding: var(--ms-space-xl);
+  text-align: center;
+  color: var(--ms-text-muted);
+  font-style: italic;
+}
+
+// ========================================
+// Counter Preview (in configurator)
+// ========================================
+.ms-counter-preview {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ms-space-lg);
+  background: var(--ms-bg-secondary);
+  border-radius: var(--ms-radius-md);
+
+  .ms-counter {
+    width: 100%;
+    max-width: 600px;
+  }
+}
+
+// ========================================
+// Counter Configurator Specific Styles
+// ========================================
+.ms-configurator--counter {
+  // Settings form container
+  .ms-settings-form {
+    padding: var(--ms-space-lg);
+  }
+
+  // Panel content scroll
+  .ms-configurator__panel-content {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  // Field row for side-by-side fields
+  .ms-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--ms-space-md);
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+
+    // Ensure nested fields don't have extra margin
+    .ms-field {
+      margin-bottom: 0;
+    }
+  }
+
+  // Color palette container in counter configurator
+  .ms-color-palette-container {
+    margin-top: var(--ms-space-sm);
+
+    .ms-color-palette {
+      padding: 0;
+      border: none;
+      background: none;
+    }
+
+    .ms-color-palette__swatches {
+      gap: var(--ms-space-xs);
+    }
+
+    .ms-color-palette__swatch {
+      width: 28px;
+      height: 28px;
+    }
+  }
+}
+
+// Color input wrapper (for counter configurator)
+.ms-counter-color-input {
+  display: flex;
+  gap: var(--ms-space-sm);
+  align-items: center;
+
+  &__picker {
+    width: 40px;
+    height: 40px;
+    padding: 2px;
+    border: 1px solid var(--ms-border);
+    border-radius: var(--ms-radius-sm);
+    cursor: pointer;
+    background: var(--ms-bg);
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+      border: none;
+      border-radius: var(--ms-radius-xs);
+    }
+  }
+
+  &__text {
+    flex: 1;
+    font-family: var(--ms-font-mono);
+    font-size: var(--ms-font-size-sm);
+  }
+}
+
+// ========================================
+// Settings Form Enhancements
+// ========================================
+.ms-settings-section {
+  margin-bottom: var(--ms-space-xl);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.ms-settings-section__title {
+  font-size: var(--ms-font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ms-text-secondary);
+  margin: 0 0 var(--ms-space-md);
+  padding-bottom: var(--ms-space-sm);
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-settings-section__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-md);
+}
+
+// ========================================
+// Saved Counters Page Styles
+// ========================================
+.ms-saved-counters {
+  font-family: var(--ms-font-family);
+  color: var(--ms-text);
+  background: var(--ms-bg);
+  min-height: calc(100vh - 60px);
+  padding: var(--ms-space-lg);
+  max-width: 1400px;
+  margin: 0 auto;
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+}
+
+.ms-saved-counters__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-md);
+  margin-bottom: var(--ms-space-xl);
+  padding-bottom: var(--ms-space-lg);
+  border-bottom: 1px solid var(--ms-border);
+
+  @include respond-to(md) {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.ms-saved-counters__title {
+  margin: 0;
+  font-size: var(--ms-font-size-2xl);
+  font-weight: 600;
+}
+
+.ms-saved-counters__grid {
+  display: grid;
+  gap: var(--ms-space-lg);
+  grid-template-columns: 1fr;
+
+  @include respond-to(sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include respond-to(lg) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+// Counter Card
+.ms-counter-card {
+  background: var(--ms-bg);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--ms-transition-base);
+
+  &:hover {
+    border-color: var(--ms-border-hover);
+    box-shadow: var(--ms-shadow-md);
+  }
+}
+
+.ms-counter-card__preview {
+  padding: var(--ms-space-md);
+  background: var(--ms-bg-secondary);
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .ms-counter {
+    transform: scale(0.8);
+    transform-origin: center;
+  }
+}
+
+.ms-counter-card__body {
+  padding: var(--ms-space-md);
+  flex: 1;
+}
+
+.ms-counter-card__name {
+  margin: 0 0 var(--ms-space-xs);
+  font-size: var(--ms-font-size-base);
+  font-weight: 600;
+}
+
+.ms-counter-card__meta {
+  font-size: var(--ms-font-size-xs);
+  color: var(--ms-text-secondary);
+}
+
+.ms-counter-card__actions {
+  display: flex;
+  gap: var(--ms-space-sm);
+  padding: var(--ms-space-md);
+  border-top: 1px solid var(--ms-border);
+  background: var(--ms-bg-secondary);
+}
+
+// ========================================
+// Layout Selector (Counter Configurator)
+// ========================================
+.ms-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--ms-space-sm);
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.ms-layout-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ms-space-sm) var(--ms-space-xs);
+  background: var(--ms-bg);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  cursor: pointer;
+  transition: all var(--ms-transition-fast);
+  min-height: 48px;
+
+  &:hover {
+    border-color: var(--ms-border-hover);
+    background: var(--ms-bg-secondary);
+  }
+
+  &.is-active {
+    border-color: var(--ms-primary);
+    background: var(--ms-primary-light);
+    color: var(--ms-primary);
+  }
+
+  &__label {
+    font-size: var(--ms-font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+}
+
+// ========================================
+// Color Row (Counter Configurator)
+// ========================================
+.ms-color-row {
+  display: flex;
+  gap: var(--ms-space-md);
+  flex-wrap: wrap;
+}
+
+.ms-color-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-xs);
+  flex: 1;
+  min-width: 70px;
+
+  &__label {
+    font-size: var(--ms-font-size-xs);
+    color: var(--ms-text-secondary);
+    font-weight: 500;
+  }
+
+  &__input {
+    width: 100%;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--ms-border);
+    border-radius: var(--ms-radius-sm);
+    cursor: pointer;
+    background: var(--ms-bg);
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+      border: none;
+      border-radius: calc(var(--ms-radius-sm) - 2px);
+    }
+  }
+}
+
+// ========================================
+// Featured Button (Counter Configurator)
+// ========================================
+.ms-featured-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  cursor: pointer;
+  color: var(--ms-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  transition: all var(--ms-transition-fast);
+
+  &:hover {
+    color: var(--ms-warning);
+    border-color: var(--ms-warning);
+  }
+
+  &.is-active {
+    color: var(--ms-warning);
+    background: var(--ms-warning-light);
+    border-color: var(--ms-warning);
+  }
+}
+
+// ========================================
+// Section Title Row (Counter Configurator)
+// ========================================
+.ms-section__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ms-space-md);
+  padding-bottom: var(--ms-space-sm);
+  border-bottom: 1px solid var(--ms-border);
+
+  .ms-section__title {
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+}
+
+// Counter section specific styling
+.ms-section--counter {
+  background: var(--ms-bg-secondary);
+  padding: var(--ms-space-md);
+  border-radius: var(--ms-radius-md);
+  margin-bottom: var(--ms-space-md);
+
+  .ms-section__title {
+    font-size: var(--ms-font-size-sm);
+    color: var(--ms-text);
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .ms-section__content {
+    gap: var(--ms-space-sm);
+  }
+}
+
+// Three column field row
+.ms-field-row--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Color palette slot
+.ms-color-palette-slot {
+  margin-top: var(--ms-space-sm);
+
+  .ms-color-palette {
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+}
+
+// ========================================
+// Badge for Live Preview
+// ========================================
+.ms-badge--live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-xs);
+  padding: var(--ms-space-xs) var(--ms-space-sm);
+  background: var(--ms-success-light);
+  color: var(--ms-success);
+  font-size: var(--ms-font-size-xs);
+  font-weight: 500;
+  border-radius: var(--ms-radius-full);
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--ms-success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

@@ -179,3 +179,76 @@ ON DUPLICATE KEY UPDATE name=name;
 -- Run this if upgrading from a previous version:
 -- ALTER TABLE graph_configs ADD COLUMN thumbnail VARCHAR(255) COMMENT 'Path to thumbnail image file' AFTER is_public;
 -- ============================================================
+
+-- ============================================================
+-- Counter Configurations Table
+-- ============================================================
+-- Stores saved counter widget configurations
+-- Supports 1-3 counter values per widget
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS counter_configs (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL COMMENT 'Display name for the counter widget',
+    slug VARCHAR(255) NOT NULL COMMENT 'URL-friendly identifier',
+    description TEXT COMMENT 'Optional description of what this counter shows',
+
+    -- Counter Configuration
+    config JSON NOT NULL COMMENT 'Counter styling and display options',
+
+    -- Data Source Configuration
+    data_source ENUM('query', 'static') DEFAULT 'query' COMMENT 'How data is fetched',
+    data_query TEXT COMMENT 'SQL query to fetch counter data',
+    static_data JSON COMMENT 'Static values for the counters',
+
+    -- Display Options
+    title VARCHAR(255) COMMENT 'Widget title displayed above counters',
+    counter_count TINYINT UNSIGNED DEFAULT 1 COMMENT 'Number of counters (1-3)',
+    layout ENUM('horizontal', 'vertical') DEFAULT 'horizontal' COMMENT 'Counter arrangement',
+
+    -- Styling
+    bg_color VARCHAR(50) COMMENT 'Background color (hex or palette reference)',
+    fg_color VARCHAR(50) COMMENT 'Foreground/text color',
+    accent_color VARCHAR(50) COMMENT 'Accent color for values',
+    palette_id INT UNSIGNED COMMENT 'Reference to color palette',
+
+    -- Individual Counter Config (stored in config JSON, but key fields here for queries)
+    -- Counter 1
+    value_column_1 VARCHAR(100) COMMENT 'Column name for counter 1 value',
+    label_1 VARCHAR(100) COMMENT 'Label for counter 1',
+    prefix_1 VARCHAR(20) COMMENT 'Prefix (e.g., $)',
+    suffix_1 VARCHAR(20) COMMENT 'Suffix (e.g., %)',
+    format_1 VARCHAR(50) COMMENT 'Number format pattern',
+    icon_1 VARCHAR(50) COMMENT 'Icon name for counter 1',
+
+    -- Counter 2
+    value_column_2 VARCHAR(100) COMMENT 'Column name for counter 2 value',
+    label_2 VARCHAR(100) COMMENT 'Label for counter 2',
+    prefix_2 VARCHAR(20),
+    suffix_2 VARCHAR(20),
+    format_2 VARCHAR(50),
+    icon_2 VARCHAR(50),
+
+    -- Counter 3
+    value_column_3 VARCHAR(100) COMMENT 'Column name for counter 3 value',
+    label_3 VARCHAR(100) COMMENT 'Label for counter 3',
+    prefix_3 VARCHAR(20),
+    suffix_3 VARCHAR(20),
+    format_3 VARCHAR(50),
+    icon_3 VARCHAR(50),
+
+    -- Other Options
+    refresh_interval INT UNSIGNED DEFAULT 0 COMMENT 'Auto-refresh interval in seconds (0 = disabled)',
+    is_public TINYINT(1) DEFAULT 1 COMMENT 'Whether this counter is publicly accessible',
+    thumbnail VARCHAR(255) COMMENT 'Path to thumbnail image file',
+
+    -- Metadata
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    -- Indexes
+    UNIQUE KEY idx_slug (slug),
+    INDEX idx_name (name),
+    INDEX idx_created (created_at),
+    FOREIGN KEY (palette_id) REFERENCES color_palettes(id) ON DELETE SET NULL
+) ENGINE=InnoDB COMMENT='Saved counter widget configurations';

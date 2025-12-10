@@ -23,11 +23,11 @@ $components = [
     [
         'id' => 'counter',
         'name' => 'Counters',
-        'description' => 'Animated counter widgets for displaying KPIs, statistics, and numeric metrics.',
-        'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
-        'status' => 'coming',
-        'demoLink' => null,
-        'configLink' => null,
+        'description' => 'Counter widgets for displaying KPIs, statistics, and numeric metrics. Supports 1-3 counters per widget.',
+        'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/><path d="M15 21V9"/></svg>',
+        'status' => 'ready',
+        'demoLink' => $basePath . '/pages/counter/demo.php',
+        'configLink' => $basePath . '/pages/counter/',
     ],
     [
         'id' => 'list',

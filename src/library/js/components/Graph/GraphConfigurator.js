@@ -10,10 +10,29 @@ import { SchemaExplorer } from '../SchemaExplorer/index.js';
 import { ColorPalette } from '../ColorPalette/index.js';
 import hljs from 'highlight.js/lib/core';
 import sql from 'highlight.js/lib/languages/sql';
-import { format as formatSQL } from 'sql-formatter';
 
 // Register SQL language
 hljs.registerLanguage('sql', sql);
+
+// SQL Formatter loaded from CDN
+let sqlFormatterLoaded = false;
+const loadSQLFormatter = () => {
+  if (sqlFormatterLoaded || window.sqlFormatter) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/sql-formatter@15/dist/sql-formatter.min.js';
+    script.onload = () => {
+      sqlFormatterLoaded = true;
+      resolve();
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
+// Load formatter in background
+loadSQLFormatter().catch(() => console.warn('SQL formatter could not be loaded'));
 
 export class GraphConfigurator {
   constructor(container, options = {}) {
@@ -1276,11 +1295,16 @@ export class GraphConfigurator {
     if (highlights) highlights.style.height = heightPx;
   }
 
-  _formatSQL(sql) {
+  _formatSQL(sqlText) {
     try {
+      // Check if formatter is available
+      if (!window.sqlFormatter || !window.sqlFormatter.format) {
+        return sqlText;
+      }
+
       // Extract and replace custom variables (::variable, $variable) with placeholders
       const variables = [];
-      let processedSql = sql;
+      let processedSql = sqlText;
 
       // Match ::variable (with optional quotes around it)
       processedSql = processedSql.replace(/'::(\w+)'/g, (match, varName) => {
@@ -1303,7 +1327,7 @@ export class GraphConfigurator {
       });
 
       // Format the SQL
-      let formatted = formatSQL(processedSql, {
+      let formatted = window.sqlFormatter.format(processedSql, {
         language: 'mysql',
         tabWidth: 4,
         useTabs: false,
@@ -1326,7 +1350,7 @@ export class GraphConfigurator {
     } catch (e) {
       // If formatting fails, return original SQL
       console.warn('SQL formatting failed:', e);
-      return sql;
+      return sqlText;
     }
   }
 
