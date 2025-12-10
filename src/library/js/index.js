@@ -11,6 +11,9 @@ export { getAvailableTypes, getChartConfig } from './components/Graph/types/inde
 // Schema Explorer
 export { SchemaExplorer } from './components/SchemaExplorer/index.js';
 
+// Color Palette
+export { ColorPalette } from './components/ColorPalette/index.js';
+
 // Theme Switcher
 export { ThemeSwitcher, initTheme, getEffectiveTheme } from './components/ThemeSwitcher/index.js';
 

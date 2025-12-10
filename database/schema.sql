@@ -134,3 +134,40 @@ CREATE TABLE IF NOT EXISTS schema_cache (
     UNIQUE KEY idx_db_table (database_name, table_name),
     INDEX idx_cached (cached_at)
 ) ENGINE=InnoDB COMMENT='Cached schema information from main database';
+
+-- ============================================================
+-- Color Palettes Table
+-- ============================================================
+-- Stores reusable color palettes for graphs and components
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS color_palettes (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL COMMENT 'Palette name (e.g., "Corporate", "Pastel")',
+    description VARCHAR(255) COMMENT 'Description of the palette',
+    colors JSON NOT NULL COMMENT 'Array of hex color codes',
+    is_default TINYINT(1) DEFAULT 0 COMMENT 'Whether this is the default palette',
+    is_system TINYINT(1) DEFAULT 0 COMMENT 'System palettes cannot be deleted',
+    sort_order INT UNSIGNED DEFAULT 0 COMMENT 'Display order',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY idx_name (name),
+    INDEX idx_default (is_default),
+    INDEX idx_sort (sort_order)
+) ENGINE=InnoDB COMMENT='Reusable color palettes for charts';
+
+-- ============================================================
+-- Insert Default Color Palettes
+-- ============================================================
+
+INSERT INTO color_palettes (name, description, colors, is_default, is_system, sort_order) VALUES
+('Default', 'Default Metric Suite colors', '["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"]', 1, 1, 1),
+('Corporate', 'Professional business colors', '["#1e40af", "#047857", "#b45309", "#b91c1c", "#6b21a8", "#0e7490", "#be185d", "#4d7c0f"]', 0, 1, 2),
+('Pastel', 'Soft pastel tones', '["#a5b4fc", "#86efac", "#fde047", "#fca5a5", "#c4b5fd", "#67e8f9", "#f9a8d4", "#bef264"]', 0, 1, 3),
+('Vibrant', 'Bold and vivid colors', '["#4f46e5", "#10b981", "#f97316", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d"]', 0, 1, 4),
+('Monochrome Blue', 'Shades of blue', '["#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"]', 0, 1, 5),
+('Monochrome Green', 'Shades of green', '["#14532d", "#166534", "#15803d", "#16a34a", "#22c55e", "#4ade80", "#86efac", "#bbf7d0"]', 0, 1, 6),
+('Earth Tones', 'Natural earth colors', '["#78350f", "#92400e", "#a16207", "#ca8a04", "#65a30d", "#047857", "#0f766e", "#155e75"]', 0, 1, 7),
+('Ocean', 'Cool ocean-inspired colors', '["#0c4a6e", "#075985", "#0369a1", "#0284c7", "#0ea5e9", "#38bdf8", "#7dd3fc", "#bae6fd"]', 0, 1, 8)
+ON DUPLICATE KEY UPDATE name=name;

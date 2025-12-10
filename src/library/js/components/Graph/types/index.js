@@ -4,6 +4,8 @@
  */
 
 import { generateBarConfig } from './BarChart.js';
+import { generateLineConfig } from './LineChart.js';
+import { generatePieConfig } from './PieChart.js';
 
 /**
  * Available chart types and their config generators
@@ -13,11 +15,22 @@ const chartTypes = {
     name: 'Bar Chart',
     generator: generateBarConfig,
   },
-  // Future chart types will be added here:
-  // line: { name: 'Line Chart', generator: generateLineConfig },
-  // pie: { name: 'Pie Chart', generator: generatePieConfig },
-  // scatter: { name: 'Scatter Chart', generator: generateScatterConfig },
-  // area: { name: 'Area Chart', generator: generateAreaConfig },
+  line: {
+    name: 'Line Chart',
+    generator: generateLineConfig,
+  },
+  pie: {
+    name: 'Pie Chart',
+    generator: generatePieConfig,
+  },
+  donut: {
+    name: 'Donut Chart',
+    generator: (options) => generatePieConfig({ ...options, donut: true }),
+  },
+  area: {
+    name: 'Area Chart',
+    generator: (options) => generateLineConfig({ ...options, showArea: true }),
+  },
 };
 
 /**

@@ -7,6 +7,7 @@ import { Graph } from './index.js';
 import { getAvailableTypes } from './types/index.js';
 import { createElement, debounce, defaultColors } from './utils.js';
 import { SchemaExplorer } from '../SchemaExplorer/index.js';
+import { ColorPalette } from '../ColorPalette/index.js';
 import hljs from 'highlight.js/lib/core';
 import sql from 'highlight.js/lib/languages/sql';
 import { format as formatSQL } from 'sql-formatter';
@@ -27,6 +28,7 @@ export class GraphConfigurator {
       apiEndpoint: options.apiEndpoint || '/api/data.php',
       saveEndpoint: options.saveEndpoint || '/api/graph.php',
       schemaEndpoint: options.schemaEndpoint || '/api/schema.php',
+      colorsEndpoint: options.colorsEndpoint || '/api/colors.php',
       onSave: options.onSave || null,
       onExport: options.onExport || null,
       ...options,
@@ -53,6 +55,7 @@ export class GraphConfigurator {
 
     this.graph = null;
     this.schemaExplorer = null;
+    this.colorPalette = null;
     this.isLoading = false;
 
     this._init();
@@ -437,20 +440,25 @@ export class GraphConfigurator {
 
   _createColorPicker() {
     const field = createElement('div', { className: 'ms-field' }, [
-      createElement('label', { className: 'ms-field__label' }, ['Primary Color']),
-      createElement('div', { className: 'ms-color-picker' }, [
-        createElement('input', {
-          type: 'color',
-          id: 'ms-primary-color',
-          value: this.state.colors[0],
-          className: 'ms-color-input',
-        }),
-        createElement('span', { className: 'ms-color-value', id: 'ms-color-value' }, [
-          this.state.colors[0],
-        ]),
-      ]),
+      createElement('div', { id: 'ms-color-palette-container' }),
     ]);
     return field;
+  }
+
+  _initColorPalette() {
+    const container = document.getElementById('ms-color-palette-container');
+    if (!container) return;
+
+    this.colorPalette = new ColorPalette(container, {
+      apiEndpoint: this.options.colorsEndpoint,
+      showManager: true,
+      allowCustom: true,
+      maxColors: 12,
+      onColorsChange: (colors) => {
+        this.state.colors = colors;
+        this._updatePreview();
+      },
+    });
   }
 
   _createSQLEditor() {
@@ -889,15 +897,8 @@ export class GraphConfigurator {
       }
     });
 
-    // Color picker
-    const colorInput = document.getElementById('ms-primary-color');
-    if (colorInput) {
-      colorInput.addEventListener('input', e => {
-        this.state.colors[0] = e.target.value;
-        document.getElementById('ms-color-value').textContent = e.target.value;
-        this._updatePreview();
-      });
-    }
+    // Color palette
+    this._initColorPalette();
 
     // X/Y Column selectors - refresh graph when changed
     const xSelect = document.getElementById('ms-xColumn');
@@ -1459,6 +1460,9 @@ export class GraphConfigurator {
   destroy() {
     if (this.graph) {
       this.graph.destroy();
+    }
+    if (this.colorPalette) {
+      this.colorPalette.destroy();
     }
     this.container.innerHTML = '';
   }

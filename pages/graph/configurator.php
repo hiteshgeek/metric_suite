@@ -56,6 +56,7 @@ $basePath = get_base_path();
             saveEndpoint: basePath + '/api/graph.php',
             apiEndpoint: basePath + '/api/data.php',
             schemaEndpoint: basePath + '/api/schema-cache.php',
+            colorsEndpoint: basePath + '/api/colors.php',
         });
     </script>
 
