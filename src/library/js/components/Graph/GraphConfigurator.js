@@ -66,6 +66,17 @@ export class GraphConfigurator {
     this.isDirty = false;
     this.lastSavedState = null;
 
+    // Screenshot settings (persisted in localStorage)
+    this.screenshotSettings = JSON.parse(localStorage.getItem('ms-screenshot-settings') || '{}');
+    this.screenshotSettings = {
+      download: this.screenshotSettings.download !== false,
+      preview: this.screenshotSettings.preview || false,
+      store: this.screenshotSettings.store || false,
+    };
+
+    // Current screenshot data URL for modal
+    this.currentScreenshot = null;
+
     this._init();
   }
 
@@ -198,10 +209,27 @@ export class GraphConfigurator {
     content.appendChild(resizer2);
     content.appendChild(preview);
 
+    // Screenshot preview modal
+    const screenshotModal = createElement('div', { className: 'ms-modal ms-modal--screenshot', id: 'ms-screenshot-modal', style: 'display: none;' }, [
+      createElement('div', { className: 'ms-modal__backdrop' }),
+      createElement('div', { className: 'ms-modal__content' }, [
+        createElement('div', { className: 'ms-modal__header' }, [
+          createElement('h3', { className: 'ms-modal__title' }, ['Screenshot Preview']),
+          createElement('button', { className: 'ms-modal__close', id: 'ms-screenshot-modal-close' }, ['×']),
+        ]),
+        createElement('div', { className: 'ms-screenshot-preview', id: 'ms-screenshot-preview' }),
+        createElement('div', { className: 'ms-modal__actions' }, [
+          createElement('button', { className: 'ms-btn ms-btn--outline', id: 'ms-screenshot-download-btn' }, ['Download']),
+          createElement('button', { className: 'ms-btn ms-btn--ghost', id: 'ms-screenshot-close-btn' }, ['Close']),
+        ]),
+      ]),
+    ]);
+
     this.container.appendChild(header);
     this.container.appendChild(content);
     this.container.appendChild(toastContainer);
     this.container.appendChild(unsavedModal);
+    this.container.appendChild(screenshotModal);
 
     // Initialize resizable panels
     this._initResizablePanels();
@@ -364,10 +392,55 @@ export class GraphConfigurator {
   _createPreviewPanel() {
     const panel = createElement('div', { className: 'ms-configurator__preview' });
 
+    // Screenshot button with dropdown
+    const screenshotBtn = createElement('div', { className: 'ms-screenshot', id: 'ms-screenshot' }, [
+      createElement('button', {
+        className: 'ms-screenshot__btn',
+        id: 'ms-screenshot-btn',
+        title: 'Capture graph image',
+      }),
+      createElement('button', {
+        className: 'ms-screenshot__dropdown-toggle',
+        id: 'ms-screenshot-toggle',
+        title: 'Screenshot options',
+      }),
+      createElement('div', { className: 'ms-screenshot__dropdown', id: 'ms-screenshot-dropdown' }, [
+        createElement('label', { className: 'ms-screenshot__option' }, [
+          createElement('input', { type: 'checkbox', id: 'ms-screenshot-download', checked: true }),
+          createElement('span', {}, ['Download image']),
+        ]),
+        createElement('label', { className: 'ms-screenshot__option' }, [
+          createElement('input', { type: 'checkbox', id: 'ms-screenshot-preview' }),
+          createElement('span', {}, ['Show preview']),
+        ]),
+        createElement('label', { className: 'ms-screenshot__option' }, [
+          createElement('input', { type: 'checkbox', id: 'ms-screenshot-store' }),
+          createElement('span', {}, ['Save as thumbnail']),
+        ]),
+      ]),
+    ]);
+
+    // Add icons to screenshot buttons
+    screenshotBtn.querySelector('#ms-screenshot-btn').innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    `;
+    screenshotBtn.querySelector('#ms-screenshot-toggle').innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    `;
+
     // Preview container
     const previewContainer = createElement('div', { className: 'ms-preview' }, [
       createElement('div', { className: 'ms-preview__header' }, [
-        createElement('h3', {}, ['Live Preview']),
+        createElement('div', { className: 'ms-preview__title-group' }, [
+          createElement('h3', { className: 'ms-preview__name', id: 'ms-preview-name' }, ['Untitled Graph']),
+          createElement('span', { className: 'ms-preview__badge' }, ['Live Preview']),
+        ]),
+        screenshotBtn,
       ]),
       createElement('div', {
         className: 'ms-preview__chart',
@@ -955,6 +1028,9 @@ export class GraphConfigurator {
     // Debounced update for text inputs
     const debouncedUpdate = debounce(() => this._updatePreview(), 300);
 
+    // Debounced preview name update
+    const debouncedPreviewName = debounce(() => this._updatePreviewName(), 150);
+
     // Field change handlers
     this.container.addEventListener('input', e => {
       const field = e.target.dataset.field;
@@ -966,6 +1042,11 @@ export class GraphConfigurator {
         }
         debouncedUpdate();
         this._markDirty();
+
+        // Update preview name when name field changes
+        if (field === 'name') {
+          debouncedPreviewName();
+        }
       }
     });
 
@@ -1105,6 +1186,9 @@ export class GraphConfigurator {
 
     // Unsaved changes modal events
     this._bindUnsavedModal();
+
+    // Screenshot events
+    this._bindScreenshot();
 
     // Export buttons
     document.getElementById('ms-export-html-btn')?.addEventListener('click', () => {
@@ -1500,6 +1584,9 @@ export class GraphConfigurator {
     if (this.colorPalette && this.state.colors?.length) {
       this.colorPalette.setColors(this.state.colors);
     }
+
+    // Update preview name
+    this._updatePreviewName();
   }
 
   /**
@@ -1889,8 +1976,211 @@ export class GraphConfigurator {
     // Update status indicator
     this._updateStatusIndicator();
 
+    // Update preview name
+    this._updatePreviewName();
+
     // Show success toast
     this._showToast('Ready to create a new graph', 'info');
+  }
+
+  /**
+   * Bind screenshot button and modal events
+   */
+  _bindScreenshot() {
+    const screenshotBtn = document.getElementById('ms-screenshot-btn');
+    const toggleBtn = document.getElementById('ms-screenshot-toggle');
+    const dropdown = document.getElementById('ms-screenshot-dropdown');
+
+    // Apply saved settings to checkboxes
+    document.getElementById('ms-screenshot-download').checked = this.screenshotSettings.download;
+    document.getElementById('ms-screenshot-preview').checked = this.screenshotSettings.preview;
+    document.getElementById('ms-screenshot-store').checked = this.screenshotSettings.store;
+
+    // Main screenshot button
+    screenshotBtn?.addEventListener('click', () => {
+      this._captureScreenshot();
+    });
+
+    // Toggle dropdown
+    toggleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown?.classList.toggle('is-open');
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.ms-screenshot')) {
+        dropdown?.classList.remove('is-open');
+      }
+    });
+
+    // Save settings on change
+    ['ms-screenshot-download', 'ms-screenshot-preview', 'ms-screenshot-store'].forEach(id => {
+      const checkbox = document.getElementById(id);
+      checkbox?.addEventListener('change', () => {
+        this.screenshotSettings.download = document.getElementById('ms-screenshot-download').checked;
+        this.screenshotSettings.preview = document.getElementById('ms-screenshot-preview').checked;
+        this.screenshotSettings.store = document.getElementById('ms-screenshot-store').checked;
+        localStorage.setItem('ms-screenshot-settings', JSON.stringify(this.screenshotSettings));
+      });
+    });
+
+    // Screenshot modal events
+    this._bindScreenshotModal();
+  }
+
+  /**
+   * Bind screenshot modal events
+   */
+  _bindScreenshotModal() {
+    const modal = document.getElementById('ms-screenshot-modal');
+    if (!modal) return;
+
+    // Backdrop click
+    modal.querySelector('.ms-modal__backdrop')?.addEventListener('click', () => {
+      this._hideScreenshotModal();
+    });
+
+    // Close buttons
+    document.getElementById('ms-screenshot-modal-close')?.addEventListener('click', () => {
+      this._hideScreenshotModal();
+    });
+    document.getElementById('ms-screenshot-close-btn')?.addEventListener('click', () => {
+      this._hideScreenshotModal();
+    });
+
+    // Download button in modal
+    document.getElementById('ms-screenshot-download-btn')?.addEventListener('click', () => {
+      if (this.currentScreenshot) {
+        this._downloadScreenshot(this.currentScreenshot);
+      }
+    });
+  }
+
+  /**
+   * Capture screenshot of the graph
+   */
+  async _captureScreenshot() {
+    if (!this.graph || !this.graph.chart) {
+      this._showToast('No graph to capture', 'warning');
+      return;
+    }
+
+    try {
+      // Get data URL from ECharts
+      const dataUrl = this.graph.chart.getDataURL({
+        type: 'png',
+        pixelRatio: 2,
+        backgroundColor: '#fff',
+      });
+
+      this.currentScreenshot = dataUrl;
+
+      const actions = [];
+
+      // Download if enabled
+      if (this.screenshotSettings.download) {
+        this._downloadScreenshot(dataUrl);
+        actions.push('downloaded');
+      }
+
+      // Show preview if enabled
+      if (this.screenshotSettings.preview) {
+        this._showScreenshotModal(dataUrl);
+        actions.push('preview shown');
+      }
+
+      // Store as thumbnail if enabled
+      if (this.screenshotSettings.store) {
+        await this._storeScreenshot(dataUrl);
+        actions.push('saved as thumbnail');
+      }
+
+      // Show toast if no actions were taken
+      if (actions.length === 0) {
+        this._showToast('Screenshot captured. Enable options to download, preview, or save.', 'info');
+      } else if (!this.screenshotSettings.preview) {
+        // Only show toast if preview is not shown (to avoid double notification)
+        this._showToast(`Screenshot ${actions.join(', ')}`, 'success');
+      }
+
+    } catch (error) {
+      console.error('Screenshot capture failed:', error);
+      this._showToast('Failed to capture screenshot', 'error');
+    }
+  }
+
+  /**
+   * Download screenshot as PNG
+   */
+  _downloadScreenshot(dataUrl) {
+    const filename = `${this.state.name || 'graph'}-${Date.now()}.png`;
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    a.click();
+  }
+
+  /**
+   * Show screenshot preview modal
+   */
+  _showScreenshotModal(dataUrl) {
+    const modal = document.getElementById('ms-screenshot-modal');
+    const preview = document.getElementById('ms-screenshot-preview');
+
+    if (modal && preview) {
+      preview.innerHTML = `<img src="${dataUrl}" alt="Screenshot preview" />`;
+      modal.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Hide screenshot modal
+   */
+  _hideScreenshotModal() {
+    const modal = document.getElementById('ms-screenshot-modal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Store screenshot as thumbnail on server
+   */
+  async _storeScreenshot(dataUrl) {
+    if (!this.state.id) {
+      this._showToast('Save the graph first to store thumbnail', 'warning');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/graph-thumbnail.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          graph_id: this.state.id,
+          image: dataUrl,
+        }),
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to store thumbnail');
+      }
+    } catch (error) {
+      console.error('Failed to store thumbnail:', error);
+      this._showToast('Failed to save thumbnail', 'error');
+    }
+  }
+
+  /**
+   * Update the preview name display
+   */
+  _updatePreviewName() {
+    const nameEl = document.getElementById('ms-preview-name');
+    if (nameEl) {
+      nameEl.textContent = this.state.name.trim() || 'Untitled Graph';
+    }
   }
 
   _exportHTML() {

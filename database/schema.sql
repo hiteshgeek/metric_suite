@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS graph_configs (
     -- Display Options
     refresh_interval INT UNSIGNED DEFAULT 0 COMMENT 'Auto-refresh interval in seconds (0 = disabled)',
     is_public TINYINT(1) DEFAULT 1 COMMENT 'Whether this graph is publicly accessible',
+    thumbnail VARCHAR(255) COMMENT 'Path to thumbnail image file',
 
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -171,3 +172,10 @@ INSERT INTO color_palettes (name, description, colors, is_default, is_system, so
 ('Earth Tones', 'Natural earth colors', '["#78350f", "#92400e", "#a16207", "#ca8a04", "#65a30d", "#047857", "#0f766e", "#155e75"]', 0, 1, 7),
 ('Ocean', 'Cool ocean-inspired colors', '["#0c4a6e", "#075985", "#0369a1", "#0284c7", "#0ea5e9", "#38bdf8", "#7dd3fc", "#bae6fd"]', 0, 1, 8)
 ON DUPLICATE KEY UPDATE name=name;
+
+-- ============================================================
+-- Migration: Add thumbnail column to graph_configs
+-- ============================================================
+-- Run this if upgrading from a previous version:
+-- ALTER TABLE graph_configs ADD COLUMN thumbnail VARCHAR(255) COMMENT 'Path to thumbnail image file' AFTER is_public;
+-- ============================================================
