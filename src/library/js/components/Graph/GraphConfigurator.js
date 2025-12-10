@@ -29,6 +29,7 @@ export class GraphConfigurator {
       saveEndpoint: options.saveEndpoint || '/api/graph.php',
       schemaEndpoint: options.schemaEndpoint || '/api/schema.php',
       colorsEndpoint: options.colorsEndpoint || '/api/colors.php',
+      editId: options.editId || null,
       onSave: options.onSave || null,
       onExport: options.onExport || null,
       ...options,
@@ -36,6 +37,7 @@ export class GraphConfigurator {
 
     // Current configuration state
     this.state = {
+      id: null,
       name: '',
       type: 'bar',
       query: '',
@@ -57,6 +59,12 @@ export class GraphConfigurator {
     this.schemaExplorer = null;
     this.colorPalette = null;
     this.isLoading = false;
+    this.isEditMode = !!this.options.editId;
+
+    // Save state tracking
+    this.isSaved = false;
+    this.isDirty = false;
+    this.lastSavedState = null;
 
     this._init();
   }
@@ -76,38 +84,87 @@ export class GraphConfigurator {
 
     // Bind events
     this._bindEvents();
+
+    // Load existing config if in edit mode
+    if (this.options.editId) {
+      this._loadExistingConfig(this.options.editId);
+    }
   }
 
   _createLayout() {
-    // Header
-    const header = createElement('div', { className: 'ms-configurator__header' }, [
-      createElement('h1', { className: 'ms-configurator__title' }, ['Graph Configurator']),
+    // Header - different title for edit vs create mode
+    const headerTitle = this.isEditMode ? 'Edit Graph' : 'Graph Configurator';
+    const saveButtonText = this.isEditMode ? 'Update Graph' : 'Save Configuration';
+
+    // Status indicator
+    const statusIndicator = createElement('div', { className: 'ms-status-indicator', id: 'ms-status-indicator' }, [
+      createElement('span', { className: 'ms-status-indicator__dot' }),
+      createElement('span', { className: 'ms-status-indicator__text' }, ['Not saved']),
+    ]);
+
+    // Header buttons container
+    const headerButtons = createElement('div', { className: 'ms-configurator__header-buttons' }, [
+      createElement(
+        'button',
+        {
+          className: 'ms-btn ms-btn--outline',
+          id: 'ms-new-btn',
+          title: 'Create a new graph',
+        },
+        [
+          createElement('span', { className: 'ms-btn__icon' }),
+          'New Graph',
+        ]
+      ),
       createElement(
         'button',
         {
           className: 'ms-btn ms-btn--primary',
           id: 'ms-save-btn',
         },
-        ['Save Configuration']
+        [saveButtonText]
       ),
+    ]);
+
+    // Add icon to new button
+    headerButtons.querySelector('#ms-new-btn .ms-btn__icon').innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+    `;
+
+    const header = createElement('div', { className: 'ms-configurator__header' }, [
+      createElement('div', { className: 'ms-configurator__title-group' }, [
+        createElement('h1', { className: 'ms-configurator__title' }, [headerTitle]),
+        statusIndicator,
+      ]),
+      headerButtons,
+    ]);
+
+    // Toast container for notifications
+    const toastContainer = createElement('div', { className: 'ms-toast-container', id: 'ms-toast-container' });
+
+    // Unsaved changes modal
+    const unsavedModal = createElement('div', { className: 'ms-modal', id: 'ms-unsaved-modal', style: 'display: none;' }, [
+      createElement('div', { className: 'ms-modal__backdrop' }),
+      createElement('div', { className: 'ms-modal__content' }, [
+        createElement('h3', { className: 'ms-modal__title' }, ['Unsaved Changes']),
+        createElement('p', { className: 'ms-modal__message' }, [
+          'You have unsaved changes. What would you like to do?'
+        ]),
+        createElement('div', { className: 'ms-modal__actions ms-modal__actions--stacked' }, [
+          createElement('button', { className: 'ms-btn ms-btn--primary', id: 'ms-unsaved-save' }, ['Save & Create New']),
+          createElement('button', { className: 'ms-btn ms-btn--outline', id: 'ms-unsaved-discard' }, ['Discard & Create New']),
+          createElement('button', { className: 'ms-btn ms-btn--ghost', id: 'ms-unsaved-cancel' }, ['Cancel']),
+        ]),
+      ]),
     ]);
 
     // Main content wrapper
     const content = createElement('div', { className: 'ms-configurator__content' });
 
     // Schema explorer panel (left sidebar)
-    const schemaHeader = createElement('div', { className: 'ms-configurator__schema-header' });
-    schemaHeader.innerHTML = `
-      <span class="ms-configurator__schema-title">Database</span>
-      <button class="ms-configurator__schema-toggle" id="ms-schema-toggle" title="Toggle Database Panel">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="m15 18-6-6 6-6"/>
-        </svg>
-      </button>
-    `;
-
     const schemaPanel = createElement('div', { className: 'ms-configurator__schema', id: 'ms-schema-panel' }, [
-      schemaHeader,
       createElement('div', { id: 'ms-schema-explorer' }),
     ]);
 
@@ -143,6 +200,8 @@ export class GraphConfigurator {
 
     this.container.appendChild(header);
     this.container.appendChild(content);
+    this.container.appendChild(toastContainer);
+    this.container.appendChild(unsavedModal);
 
     // Initialize resizable panels
     this._initResizablePanels();
@@ -155,7 +214,6 @@ export class GraphConfigurator {
 
     const schemaPanel = document.getElementById('ms-schema-panel');
     const settingsPanel = document.getElementById('ms-settings-panel');
-    const schemaToggle = document.getElementById('ms-schema-toggle');
     const schemaResizer = document.getElementById('ms-resizer-schema');
 
     // Apply saved widths
@@ -171,22 +229,6 @@ export class GraphConfigurator {
       schemaPanel.classList.add('is-collapsed');
       if (schemaResizer) schemaResizer.style.display = 'none';
     }
-
-    // Schema toggle button
-    schemaToggle?.addEventListener('click', () => {
-      const isCollapsed = schemaPanel.classList.toggle('is-collapsed');
-      localStorage.setItem('ms-schema-collapsed', isCollapsed);
-
-      // Hide/show resizer when collapsed
-      if (schemaResizer) {
-        schemaResizer.style.display = isCollapsed ? 'none' : '';
-      }
-
-      // Restore width when expanding
-      if (!isCollapsed && savedWidths.schema) {
-        schemaPanel.style.width = savedWidths.schema + 'px';
-      }
-    });
 
     // Setup resizers
     this._setupResizer('ms-resizer-schema', 'ms-schema-panel', 200, 500);
@@ -457,6 +499,7 @@ export class GraphConfigurator {
       onColorsChange: (colors) => {
         this.state.colors = colors;
         this._updatePreview();
+        this._markDirty();
       },
     });
   }
@@ -709,7 +752,47 @@ export class GraphConfigurator {
           this._insertIntoQuery(text);
         },
       });
+
+      // Inject toggle button into SchemaExplorer header
+      const schemaHeader = schemaContainer.querySelector('.ms-schema-explorer__header');
+      if (schemaHeader) {
+        const toggleBtn = createElement('button', {
+          className: 'ms-configurator__schema-toggle',
+          id: 'ms-schema-toggle',
+          title: 'Toggle Database Panel',
+        });
+        toggleBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+        `;
+        schemaHeader.appendChild(toggleBtn);
+
+        // Bind toggle button event
+        this._bindSchemaToggle(toggleBtn);
+      }
     }
+  }
+
+  _bindSchemaToggle(toggleBtn) {
+    const schemaPanel = document.getElementById('ms-schema-panel');
+    const schemaResizer = document.getElementById('ms-resizer-schema');
+    const savedWidths = JSON.parse(localStorage.getItem('ms-configurator-widths') || '{}');
+
+    toggleBtn.addEventListener('click', () => {
+      const isCollapsed = schemaPanel.classList.toggle('is-collapsed');
+      localStorage.setItem('ms-schema-collapsed', isCollapsed);
+
+      // Hide/show resizer when collapsed
+      if (schemaResizer) {
+        schemaResizer.style.display = isCollapsed ? 'none' : '';
+      }
+
+      // Restore width when expanding
+      if (!isCollapsed && savedWidths.schema) {
+        schemaPanel.style.width = savedWidths.schema + 'px';
+      }
+    });
   }
 
   _insertIntoQuery(text) {
@@ -882,6 +965,7 @@ export class GraphConfigurator {
           this.state[field] = e.target.value;
         }
         debouncedUpdate();
+        this._markDirty();
       }
     });
 
@@ -894,6 +978,7 @@ export class GraphConfigurator {
           this.state[field] = e.target.value;
         }
         this._updatePreview();
+        this._markDirty();
       }
     });
 
@@ -1012,6 +1097,14 @@ export class GraphConfigurator {
     document.getElementById('ms-save-btn')?.addEventListener('click', () => {
       this._saveConfiguration();
     });
+
+    // New Graph button
+    document.getElementById('ms-new-btn')?.addEventListener('click', () => {
+      this._handleNewGraph();
+    });
+
+    // Unsaved changes modal events
+    this._bindUnsavedModal();
 
     // Export buttons
     document.getElementById('ms-export-html-btn')?.addEventListener('click', () => {
@@ -1319,15 +1412,258 @@ export class GraphConfigurator {
     });
   }
 
+  async _loadExistingConfig(id) {
+    try {
+      const response = await fetch(`${this.options.saveEndpoint}?id=${id}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        const config = result.data;
+
+        // Update state with loaded data
+        this.state.id = config.id;
+        this.state.name = config.name || '';
+        this.state.type = config.type || 'bar';
+        this.state.query = config.data_query || '';
+        this.state.xColumn = config.x_column || '';
+        this.state.yColumn = config.y_column || '';
+
+        // Load from config JSON
+        if (config.config) {
+          this.state.title = config.config.title || '';
+          this.state.orientation = config.config.orientation || 'vertical';
+          this.state.showLegend = config.config.showLegend !== false;
+          this.state.legendPosition = config.config.legendPosition || 'top';
+          this.state.showLabels = config.config.showLabels || false;
+          this.state.animation = config.config.animation !== false;
+          if (config.config.colors?.length) {
+            this.state.colors = config.config.colors;
+          }
+        }
+
+        // Update form fields
+        this._populateFormFields();
+
+        // Update preview
+        this._updatePreview();
+
+        // Mark as saved (existing config)
+        this.isSaved = true;
+        this.isDirty = false;
+        this.lastSavedState = this._getSerializableState();
+        this._updateStatusIndicator();
+
+        // If there's a query, test it to load data
+        if (this.state.query) {
+          this._testQuery();
+        }
+      } else {
+        console.error('Failed to load config:', result.error);
+        this._showToast('Failed to load graph configuration', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to load config:', error);
+      this._showToast('Failed to load graph configuration', 'error');
+    }
+  }
+
+  _populateFormFields() {
+    // Populate text/select fields
+    const fields = ['name', 'type', 'title', 'orientation', 'legendPosition'];
+    fields.forEach(field => {
+      const el = document.getElementById(`ms-${field}`);
+      if (el) {
+        el.value = this.state[field] || '';
+      }
+    });
+
+    // Populate checkboxes
+    const checkboxes = ['showLegend', 'showLabels', 'animation'];
+    checkboxes.forEach(field => {
+      const el = document.getElementById(`ms-${field}`);
+      if (el) {
+        el.checked = this.state[field];
+      }
+    });
+
+    // Populate query textarea
+    const queryEl = document.getElementById('ms-query');
+    if (queryEl) {
+      queryEl.value = this.state.query || '';
+      this._autoResizeEditor();
+      this._updateSQLHighlight();
+      this._updateLimitSliderVisibility();
+      this._updateVariablesPanel();
+    }
+
+    // Update color palette if loaded
+    if (this.colorPalette && this.state.colors?.length) {
+      this.colorPalette.setColors(this.state.colors);
+    }
+  }
+
+  /**
+   * Show a toast notification
+   */
+  _showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('ms-toast-container');
+    if (!container) return;
+
+    const toast = createElement('div', { className: `ms-toast ms-toast--${type}` }, [
+      createElement('div', { className: 'ms-toast__icon' }, [this._getToastIcon(type)]),
+      createElement('div', { className: 'ms-toast__content' }, [
+        createElement('p', { className: 'ms-toast__message' }, [message]),
+      ]),
+      createElement('button', { className: 'ms-toast__close', type: 'button' }, ['×']),
+    ]);
+
+    // Close button handler
+    toast.querySelector('.ms-toast__close').addEventListener('click', () => {
+      toast.classList.add('ms-toast--exit');
+      setTimeout(() => toast.remove(), 300);
+    });
+
+    container.appendChild(toast);
+
+    // Trigger enter animation
+    requestAnimationFrame(() => toast.classList.add('ms-toast--enter'));
+
+    // Auto remove
+    if (duration > 0) {
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.classList.add('ms-toast--exit');
+          setTimeout(() => toast.remove(), 300);
+        }
+      }, duration);
+    }
+  }
+
+  _getToastIcon(type) {
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    };
+    const span = document.createElement('span');
+    span.innerHTML = icons[type] || icons.info;
+    return span.firstChild;
+  }
+
+  /**
+   * Update save status indicator
+   */
+  _updateStatusIndicator() {
+    const indicator = document.getElementById('ms-status-indicator');
+    if (!indicator) return;
+
+    const dot = indicator.querySelector('.ms-status-indicator__dot');
+    const text = indicator.querySelector('.ms-status-indicator__text');
+
+    // Remove all state classes
+    indicator.classList.remove('ms-status-indicator--saved', 'ms-status-indicator--unsaved', 'ms-status-indicator--dirty');
+
+    if (this.isSaved && !this.isDirty) {
+      indicator.classList.add('ms-status-indicator--saved');
+      text.textContent = 'Saved';
+    } else if (this.isSaved && this.isDirty) {
+      indicator.classList.add('ms-status-indicator--dirty');
+      text.textContent = 'Unsaved changes';
+    } else {
+      indicator.classList.add('ms-status-indicator--unsaved');
+      text.textContent = 'Not saved';
+    }
+
+    // Update New Graph button state
+    this._updateNewGraphButton();
+
+    // Update Save button state
+    this._updateSaveButton();
+  }
+
+  /**
+   * Update New Graph button disabled state
+   * Button should be disabled when it's already a fresh new graph with no content
+   */
+  _updateNewGraphButton() {
+    const newBtn = document.getElementById('ms-new-btn');
+    if (!newBtn) return;
+
+    // Disable if: not saved AND no content has been entered
+    const isEmptyNewGraph = !this.isSaved && !this._hasUnsavedChanges();
+    newBtn.disabled = isEmptyNewGraph;
+  }
+
+  /**
+   * Update Save button disabled state
+   * Button should be disabled when:
+   * - For new graphs: no name entered (name is required)
+   * - For saved graphs: no changes have been made (not dirty)
+   */
+  _updateSaveButton() {
+    const saveBtn = document.getElementById('ms-save-btn');
+    if (!saveBtn) return;
+
+    if (this.isSaved) {
+      // For saved graphs, disable if no changes
+      saveBtn.disabled = !this.isDirty;
+    } else {
+      // For new graphs, disable if name is empty
+      saveBtn.disabled = !this.state.name.trim();
+    }
+  }
+
+  /**
+   * Mark state as dirty only if current state differs from last saved state
+   */
+  _markDirty() {
+    // For unsaved graphs, just update the button states
+    if (!this.isSaved) {
+      this._updateNewGraphButton();
+      this._updateSaveButton();
+      return;
+    }
+
+    const currentState = this._getSerializableState();
+    const hasChanges = currentState !== this.lastSavedState;
+
+    if (hasChanges !== this.isDirty) {
+      this.isDirty = hasChanges;
+      this._updateStatusIndicator();
+    }
+  }
+
+  /**
+   * Get serializable state for comparison
+   */
+  _getSerializableState() {
+    return JSON.stringify({
+      name: this.state.name,
+      type: this.state.type,
+      query: this.state.query,
+      xColumn: this.state.xColumn,
+      yColumn: this.state.yColumn,
+      title: this.state.title,
+      orientation: this.state.orientation,
+      showLegend: this.state.showLegend,
+      legendPosition: this.state.legendPosition,
+      showLabels: this.state.showLabels,
+      animation: this.state.animation,
+      colors: this.state.colors,
+    });
+  }
+
   async _saveConfiguration() {
     if (!this.state.name.trim()) {
-      alert('Please enter a name for the graph configuration');
+      this._showToast('Please enter a name for the graph configuration', 'warning');
       return;
     }
 
     const saveBtn = document.getElementById('ms-save-btn');
+    const originalText = saveBtn.textContent;
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
+    saveBtn.textContent = this.isEditMode ? 'Updating...' : 'Saving...';
 
     try {
       const configData = {
@@ -1347,8 +1683,14 @@ export class GraphConfigurator {
         y_column: this.state.yColumn,
       };
 
-      const response = await fetch(this.options.saveEndpoint, {
-        method: 'POST',
+      // Use PUT for updates, POST for new configs
+      const url = this.isEditMode
+        ? `${this.options.saveEndpoint}?id=${this.state.id}`
+        : this.options.saveEndpoint;
+      const method = this.isEditMode ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(configData),
       });
@@ -1356,20 +1698,199 @@ export class GraphConfigurator {
       const result = await response.json();
 
       if (result.success) {
-        alert('Configuration saved successfully!');
+        // Update state tracking
+        this.isSaved = true;
+        this.isDirty = false;
+        this.lastSavedState = this._getSerializableState();
+
+        // If this was a new config, store the ID and switch to edit mode
+        if (!this.isEditMode && result.id) {
+          this.state.id = result.id;
+          this.isEditMode = true;
+        }
+
+        this._updateStatusIndicator();
+
+        const message = this.isEditMode
+          ? 'Graph updated successfully!'
+          : 'Graph saved successfully!';
+        this._showToast(message, 'success');
+
+        // Call onSave callback but don't redirect
         if (this.options.onSave) {
           this.options.onSave(result);
         }
       } else {
-        alert('Failed to save: ' + (result.error || 'Unknown error'));
+        this._showToast('Failed to save: ' + (result.error || 'Unknown error'), 'error');
       }
     } catch (error) {
-      alert('Failed to save configuration');
+      this._showToast('Failed to save configuration', 'error');
       console.error('Save failed:', error);
     } finally {
       saveBtn.disabled = false;
+      saveBtn.textContent = originalText;
+    }
+  }
+
+  /**
+   * Handle "New Graph" button click
+   */
+  _handleNewGraph() {
+    // Check if there are unsaved changes
+    const hasUnsavedChanges = this._hasUnsavedChanges();
+
+    if (hasUnsavedChanges) {
+      // Show confirmation modal
+      this._showUnsavedModal();
+    } else {
+      // No unsaved changes, just reset
+      this._resetToNewGraph();
+    }
+  }
+
+  /**
+   * Check if there are unsaved changes
+   */
+  _hasUnsavedChanges() {
+    // If never saved and has any content
+    if (!this.isSaved) {
+      return this.state.name.trim() !== '' ||
+             this.state.query.trim() !== '' ||
+             this.state.title.trim() !== '';
+    }
+    // If saved but modified
+    return this.isDirty;
+  }
+
+  /**
+   * Show the unsaved changes modal
+   */
+  _showUnsavedModal() {
+    const modal = document.getElementById('ms-unsaved-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Hide the unsaved changes modal
+   */
+  _hideUnsavedModal() {
+    const modal = document.getElementById('ms-unsaved-modal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Bind unsaved modal events
+   */
+  _bindUnsavedModal() {
+    const modal = document.getElementById('ms-unsaved-modal');
+    if (!modal) return;
+
+    // Backdrop click
+    modal.querySelector('.ms-modal__backdrop')?.addEventListener('click', () => {
+      this._hideUnsavedModal();
+    });
+
+    // Cancel button
+    document.getElementById('ms-unsaved-cancel')?.addEventListener('click', () => {
+      this._hideUnsavedModal();
+    });
+
+    // Discard & Create New
+    document.getElementById('ms-unsaved-discard')?.addEventListener('click', () => {
+      this._hideUnsavedModal();
+      this._resetToNewGraph();
+    });
+
+    // Save & Create New
+    document.getElementById('ms-unsaved-save')?.addEventListener('click', async () => {
+      this._hideUnsavedModal();
+      await this._saveConfiguration();
+      // Only reset if save was successful
+      if (this.isSaved && !this.isDirty) {
+        this._resetToNewGraph();
+      }
+    });
+  }
+
+  /**
+   * Reset the configurator to create a new graph
+   */
+  _resetToNewGraph() {
+    // Reset state
+    this.state = {
+      id: null,
+      name: '',
+      type: 'bar',
+      query: '',
+      xColumn: '',
+      yColumn: '',
+      title: '',
+      orientation: 'vertical',
+      showLegend: true,
+      legendPosition: 'top',
+      showLabels: false,
+      animation: true,
+      colors: [],
+      data: [],
+      columns: [],
+      variables: {},
+    };
+
+    // Reset tracking
+    this.isSaved = false;
+    this.isDirty = false;
+    this.lastSavedState = null;
+    this.isEditMode = false;
+
+    // Reset form fields
+    this._populateFormFields();
+
+    // Reset column selects
+    ['ms-xColumn', 'ms-yColumn'].forEach(id => {
+      const select = document.getElementById(id);
+      if (select) {
+        select.innerHTML = '<option value="">Select column</option>';
+      }
+    });
+
+    // Reset color palette
+    if (this.colorPalette) {
+      this.colorPalette.setColors([]);
+    }
+
+    // Reset preview graph
+    if (this.graph) {
+      this.graph.setData([10, 20, 30, 40, 50], null, null);
+      this.graph.setOptions({
+        type: 'bar',
+        title: '',
+        orientation: 'vertical',
+        showLegend: true,
+        legendPosition: 'top',
+        showLabels: false,
+        animation: true,
+      });
+    }
+
+    // Update header title and button
+    const titleEl = this.container.querySelector('.ms-configurator__title');
+    if (titleEl) {
+      titleEl.textContent = 'Graph Configurator';
+    }
+    const saveBtn = document.getElementById('ms-save-btn');
+    if (saveBtn) {
       saveBtn.textContent = 'Save Configuration';
     }
+
+    // Update status indicator
+    this._updateStatusIndicator();
+
+    // Show success toast
+    this._showToast('Ready to create a new graph', 'info');
   }
 
   _exportHTML() {
@@ -1420,7 +1941,7 @@ export class GraphConfigurator {
 
   _copyToClipboard(text, message) {
     navigator.clipboard.writeText(text).then(() => {
-      alert(message);
+      this._showToast(message, 'success');
     }).catch(() => {
       // Fallback
       const textarea = document.createElement('textarea');
@@ -1429,7 +1950,7 @@ export class GraphConfigurator {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      alert(message);
+      this._showToast(message, 'success');
     });
   }
 

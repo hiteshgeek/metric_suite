@@ -43,6 +43,23 @@
   font-weight: 600;
 }
 
+.ms-configurator__header-buttons {
+  display: flex;
+  gap: var(--ms-space-sm);
+  align-items: center;
+
+  .ms-btn__icon {
+    display: flex;
+    align-items: center;
+    margin-right: var(--ms-space-xs);
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
 .ms-configurator__content {
   display: flex;
   flex-direction: column;
@@ -77,8 +94,17 @@
       min-width: 40px !important;
       overflow: hidden;
 
-      #ms-schema-explorer {
+      // Hide all schema explorer content except header with toggle
+      .ms-schema-explorer__typeahead,
+      .ms-schema-explorer__selected-table,
+      .ms-schema-explorer__details,
+      .ms-schema-explorer__title {
         display: none;
+      }
+
+      .ms-schema-explorer__header {
+        justify-content: center;
+        padding: var(--ms-space-sm);
       }
 
       .ms-configurator__schema-toggle {
@@ -90,6 +116,8 @@
   #ms-schema-explorer {
     height: 300px;
     flex: 1;
+    overflow: hidden;
+    border-radius: var(--ms-radius-lg);
 
     @include respond-to(lg) {
       height: 100%;
@@ -97,30 +125,7 @@
   }
 }
 
-.ms-configurator__schema-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--ms-space-xs) var(--ms-space-sm);
-  background: var(--ms-bg-secondary);
-  border-bottom: 1px solid var(--ms-border);
-  min-height: 36px;
-}
-
-.ms-configurator__schema-title {
-  font-size: var(--ms-font-size-xs);
-  font-weight: 600;
-  color: var(--ms-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  overflow: hidden;
-
-  .is-collapsed & {
-    display: none;
-  }
-}
-
+// Schema panel toggle button (inside SchemaExplorer header)
 .ms-configurator__schema-toggle {
   display: flex;
   align-items: center;
@@ -907,4 +912,187 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--ms-space-sm);
+}
+
+// ========================================
+// Status Indicator
+// ========================================
+.ms-configurator__title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-md);
+}
+
+.ms-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-xs);
+  padding: var(--ms-space-xs) var(--ms-space-sm);
+  border-radius: var(--ms-radius-full);
+  font-size: var(--ms-font-size-xs);
+  font-weight: 500;
+  background: var(--ms-bg-tertiary);
+  color: var(--ms-text-secondary);
+  transition: all var(--ms-transition-base);
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ms-text-muted);
+    transition: background var(--ms-transition-base);
+  }
+
+  &--saved {
+    background: var(--ms-success-light);
+    color: var(--ms-success);
+
+    .ms-status-indicator__dot {
+      background: var(--ms-success);
+    }
+  }
+
+  &--unsaved {
+    background: var(--ms-bg-tertiary);
+    color: var(--ms-text-secondary);
+
+    .ms-status-indicator__dot {
+      background: var(--ms-text-muted);
+    }
+  }
+
+  &--dirty {
+    background: var(--ms-warning-light);
+    color: #92400e;
+
+    .ms-status-indicator__dot {
+      background: var(--ms-warning);
+      animation: ms-pulse 1.5s infinite;
+    }
+  }
+}
+
+@keyframes ms-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// ========================================
+// Toast Notifications
+// ========================================
+.ms-toast-container {
+  position: fixed;
+  top: var(--ms-space-lg);
+  right: var(--ms-space-lg);
+  z-index: calc(var(--ms-z-modal) + 100);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-sm);
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.ms-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ms-space-sm);
+  padding: var(--ms-space-md);
+  background: var(--ms-bg);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  box-shadow: var(--ms-shadow-lg);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+
+  &--enter {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  &--exit {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__message {
+    margin: 0;
+    font-size: var(--ms-font-size-sm);
+    line-height: 1.4;
+    color: var(--ms-text);
+  }
+
+  &__close {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--ms-text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: var(--ms-radius-sm);
+    transition: all var(--ms-transition-fast);
+
+    &:hover {
+      background: var(--ms-bg-tertiary);
+      color: var(--ms-text);
+    }
+  }
+
+  // Toast types
+  &--success {
+    border-left: 4px solid var(--ms-success);
+
+    .ms-toast__icon {
+      color: var(--ms-success);
+    }
+  }
+
+  &--error {
+    border-left: 4px solid var(--ms-error);
+
+    .ms-toast__icon {
+      color: var(--ms-error);
+    }
+  }
+
+  &--warning {
+    border-left: 4px solid var(--ms-warning);
+
+    .ms-toast__icon {
+      color: var(--ms-warning);
+    }
+  }
+
+  &--info {
+    border-left: 4px solid var(--ms-primary);
+
+    .ms-toast__icon {
+      color: var(--ms-primary);
+    }
+  }
 }

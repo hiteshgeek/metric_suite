@@ -16,9 +16,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--ms-space-sm) var(--ms-space-md);
+  padding: var(--ms-space-md);
   background: var(--ms-bg-secondary);
   border-bottom: 1px solid var(--ms-border);
+  min-height: 48px;
+  border-radius: var(--ms-radius-lg) var(--ms-radius-lg) 0 0;
 }
 
 .ms-schema-explorer__title {
@@ -38,7 +40,7 @@
 // Typeahead search
 .ms-schema-explorer__typeahead {
   position: relative;
-  padding: var(--ms-space-sm);
+  padding: var(--ms-space-md);
   border-bottom: 1px solid var(--ms-border);
 }
 

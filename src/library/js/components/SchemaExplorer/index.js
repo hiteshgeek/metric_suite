@@ -205,12 +205,17 @@ export class SchemaExplorer {
       return;
     }
 
-    // Filter matching tables
-    const filtered = this.tables.filter(table =>
-      table.name.toLowerCase().includes(term)
-    ).slice(0, 10); // Limit to 10 results
+    // Fuzzy filter and score matching tables
+    const scored = this.tables
+      .map(table => ({
+        table,
+        score: this.fuzzyMatch(table.name.toLowerCase(), term)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10); // Limit to 10 results
 
-    if (filtered.length === 0) {
+    if (scored.length === 0) {
       dropdown.innerHTML = `
         <li class="ms-schema-explorer__dropdown-empty">No matching tables</li>
       `;
@@ -218,14 +223,14 @@ export class SchemaExplorer {
       return;
     }
 
-    dropdown.innerHTML = filtered.map((table, index) => `
+    dropdown.innerHTML = scored.map(({ table }, index) => `
       <li class="ms-schema-explorer__dropdown-item${index === 0 ? ' is-active' : ''}" data-table="${table.name}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="18" height="18" rx="2"/>
           <path d="M3 9h18"/>
           <path d="M9 21V9"/>
         </svg>
-        <span class="ms-schema-explorer__dropdown-name">${this.highlightMatch(table.name, term)}</span>
+        <span class="ms-schema-explorer__dropdown-name">${this.highlightFuzzyMatch(table.name, term)}</span>
         <span class="ms-schema-explorer__dropdown-count">${this.formatRowCount(table.row_count)}</span>
       </li>
     `).join('');
@@ -246,12 +251,87 @@ export class SchemaExplorer {
     });
   }
 
-  highlightMatch(text, term) {
-    const index = text.toLowerCase().indexOf(term.toLowerCase());
-    if (index === -1) return text;
-    return text.substring(0, index) +
-      '<mark>' + text.substring(index, index + term.length) + '</mark>' +
-      text.substring(index + term.length);
+  /**
+   * Fuzzy match scoring - returns score > 0 if matches, 0 if no match
+   * Higher score = better match
+   */
+  fuzzyMatch(text, pattern) {
+    if (!pattern) return 1;
+
+    const textLower = text.toLowerCase();
+    const patternLower = pattern.toLowerCase();
+
+    // Exact match gets highest score
+    if (textLower === patternLower) return 100;
+
+    // Starts with pattern gets high score
+    if (textLower.startsWith(patternLower)) return 90;
+
+    // Contains pattern as substring gets good score
+    if (textLower.includes(patternLower)) return 80;
+
+    // Fuzzy character matching
+    let patternIdx = 0;
+    let score = 0;
+    let consecutiveBonus = 0;
+    let lastMatchIdx = -1;
+
+    for (let i = 0; i < text.length && patternIdx < pattern.length; i++) {
+      if (textLower[i] === patternLower[patternIdx]) {
+        score += 10;
+
+        // Bonus for consecutive matches
+        if (lastMatchIdx === i - 1) {
+          consecutiveBonus += 5;
+        }
+
+        // Bonus for matching at word boundaries (after _ or at start)
+        if (i === 0 || text[i - 1] === '_') {
+          score += 10;
+        }
+
+        lastMatchIdx = i;
+        patternIdx++;
+      }
+    }
+
+    // All pattern characters must be found
+    if (patternIdx !== pattern.length) return 0;
+
+    return score + consecutiveBonus;
+  }
+
+  /**
+   * Highlight fuzzy matched characters in text
+   */
+  highlightFuzzyMatch(text, pattern) {
+    if (!pattern) return text;
+
+    const textLower = text.toLowerCase();
+    const patternLower = pattern.toLowerCase();
+
+    // If it's a substring match, highlight the substring
+    const substringIndex = textLower.indexOf(patternLower);
+    if (substringIndex !== -1) {
+      return text.substring(0, substringIndex) +
+        '<mark>' + text.substring(substringIndex, substringIndex + pattern.length) + '</mark>' +
+        text.substring(substringIndex + pattern.length);
+    }
+
+    // Otherwise highlight individual fuzzy matched characters
+    let result = '';
+    let patternIdx = 0;
+
+    for (let i = 0; i < text.length; i++) {
+      if (patternIdx < pattern.length && textLower[i] === patternLower[patternIdx]) {
+        result += '<mark>' + text[i] + '</mark>';
+        patternIdx++;
+      } else {
+        result += text[i];
+      }
+    }
+
+    return result;
   }
 
   async selectTable(tableName) {
