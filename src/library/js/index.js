@@ -12,6 +12,26 @@ export { getAvailableTypes, getChartConfig } from './components/Graph/types/inde
 export { Counter } from './components/Counter/index.js';
 export { CounterConfigurator } from './components/Counter/CounterConfigurator.js';
 
+// Widget System
+export {
+  Widget,
+  WidgetFactory,
+  WIDGET_TYPES,
+  WIDGET_CATEGORIES,
+  DEFAULT_WIDGET_CONFIG,
+  getWidgetTypeLabel,
+  getAvailableWidgetTypes,
+  getWidgetCategory,
+} from './components/Widget/index.js';
+
+// Widget Types
+export * from './components/Widget/types/index.js';
+
+// Widget Components
+export { WidgetConfigurator } from './components/Widget/WidgetConfigurator.js';
+export { QueryEngine } from './components/Widget/QueryEngine.js';
+export { DashboardLayout } from './components/Widget/DashboardLayout.js';
+
 // Schema Explorer
 export { SchemaExplorer } from './components/SchemaExplorer/index.js';
 

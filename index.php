@@ -12,6 +12,15 @@ $basePath = get_base_path();
 // Define dashboard components
 $components = [
     [
+        'id' => 'dashboard',
+        'name' => 'Dashboard Builder',
+        'description' => 'Create custom dashboards by combining charts, counters, lists, and tables in a drag-and-drop grid layout.',
+        'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+        'status' => 'ready',
+        'demoLink' => null,
+        'configLink' => $basePath . '/pages/dashboard/',
+    ],
+    [
         'id' => 'graph',
         'name' => 'Graphs',
         'description' => 'Create beautiful charts and graphs using Apache ECharts. Supports bar, line, pie, and more chart types.',
@@ -32,29 +41,20 @@ $components = [
     [
         'id' => 'list',
         'name' => 'Lists',
-        'description' => 'Dynamic list components for displaying data in organized, scrollable formats.',
+        'description' => 'Dynamic list widgets: simple, ranked, grouped, avatar, and timeline formats for organized data display.',
         'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
-        'status' => 'coming',
-        'demoLink' => null,
-        'configLink' => null,
+        'status' => 'ready',
+        'demoLink' => $basePath . '/pages/list/demo.php',
+        'configLink' => $basePath . '/pages/list/',
     ],
     [
         'id' => 'table',
         'name' => 'Tables',
-        'description' => 'Data tables with sorting, filtering, pagination, and export capabilities.',
+        'description' => 'Data tables with sorting, filtering, pagination, expandable rows, and inline editing capabilities.',
         'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>',
-        'status' => 'coming',
-        'demoLink' => null,
-        'configLink' => null,
-    ],
-    [
-        'id' => 'links',
-        'name' => 'Links',
-        'description' => 'Navigation and link components for creating dashboards with quick access panels.',
-        'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
-        'status' => 'coming',
-        'demoLink' => null,
-        'configLink' => null,
+        'status' => 'ready',
+        'demoLink' => $basePath . '/pages/table/demo.php',
+        'configLink' => $basePath . '/pages/table/',
     ],
 ];
 ?>

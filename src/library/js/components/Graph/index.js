@@ -6,6 +6,10 @@
 import * as echarts from 'echarts';
 import { deepMerge, debounce, generateId } from './utils.js';
 import { getChartConfig } from './types/index.js';
+import { registerTheme, registerAllThemes } from './themes.js';
+
+// Register all themes on module load
+registerAllThemes();
 
 export class Graph {
   constructor(container, options = {}) {
@@ -106,6 +110,31 @@ export class Graph {
   setType(type) {
     this.options.type = type;
     this._applyConfig();
+    return this;
+  }
+
+  /**
+   * Set chart theme (requires re-initialization)
+   */
+  setTheme(theme) {
+    if (this.options.theme === theme) return this;
+
+    this.options.theme = theme;
+
+    // ECharts requires disposing and re-initializing to change theme
+    if (this.chart && !this.chart.isDisposed()) {
+      // Save current option before disposing
+      const currentOption = this.chart.getOption();
+
+      this.chart.dispose();
+
+      // Re-initialize with new theme (null for default)
+      this.chart = echarts.init(this.container, theme === 'default' ? null : theme);
+
+      // Re-apply the configuration
+      this._applyConfig();
+    }
+
     return this;
   }
 

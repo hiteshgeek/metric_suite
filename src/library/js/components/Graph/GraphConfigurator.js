@@ -1,13 +1,19 @@
 /**
  * Graph Configurator UI Component
  * Provides a complete interface for configuring and previewing graphs
+ * Enhanced with multi-source data support, visual query builder, templates, and drill-down
  */
 
 import { Graph } from './index.js';
 import { getAvailableTypes } from './types/index.js';
-import { createElement, debounce, defaultColors } from './utils.js';
+import { createElement, debounce } from './utils.js';
+import { getAvailableThemes, getThemeDefinition, defaultColorPalette, registerCustomTheme } from './themes.js';
+import { ThemeBuilder } from './ThemeBuilder/index.js';
 import { SchemaExplorer } from '../SchemaExplorer/index.js';
-import { ColorPalette } from '../ColorPalette/index.js';
+import DataSourcePanel from './DataSourcePanel/index.js';
+import QueryBuilder from './QueryBuilder/index.js';
+import TemplateSelector from './Templates/index.js';
+import DrillDown from './DrillDown/index.js';
 import hljs from 'highlight.js/lib/core';
 import sql from 'highlight.js/lib/languages/sql';
 
@@ -69,17 +75,31 @@ export class GraphConfigurator {
       legendPosition: 'top',
       showLabels: false,
       animation: true,
-      colors: [...defaultColors],
       data: [],
       columns: [],
       variables: {}, // Store variable values like { company: '1', start: '2024-01-01' }
+      // New: Data source configuration
+      dataSourceType: 'sql', // 'sql', 'file', 'api', 'clipboard', 'websocket'
+      dataSourceConfig: {},
+      // Theme configuration
+      theme: 'default',
+      themeConfig: null, // Custom theme configuration (when using Theme Builder)
     };
 
     this.graph = null;
     this.schemaExplorer = null;
-    this.colorPalette = null;
     this.isLoading = false;
     this.isEditMode = !!this.options.editId;
+
+    // New component instances
+    this.dataSourcePanel = null;
+    this.queryBuilder = null;
+    this.templateSelector = null;
+    this.drillDown = null;
+    this.themeBuilder = null;
+
+    // Active panel tracking
+    this.activeDataPanel = 'sql'; // 'sql', 'visual', 'upload', 'api', 'clipboard', 'websocket'
 
     // Save state tracking
     this.isSaved = false;
@@ -105,7 +125,7 @@ export class GraphConfigurator {
 
   _init() {
     this.container.innerHTML = '';
-    this.container.className = 'ms-configurator';
+    this.container.className = 'ms-configurator ms-configurator--enhanced';
 
     // Create main layout
     this._createLayout();
@@ -115,6 +135,11 @@ export class GraphConfigurator {
 
     // Initialize schema explorer
     this._initSchemaExplorer();
+
+    // Initialize new components
+    this._initDataSourcePanel();
+    this._initQueryBuilder();
+    this._initDrillDown();
 
     // Bind events
     this._bindEvents();
@@ -194,6 +219,9 @@ export class GraphConfigurator {
       ]),
     ]);
 
+    // Toolbar with data source tabs and templates
+    const toolbar = this._createToolbar();
+
     // Main content wrapper
     const content = createElement('div', { className: 'ms-configurator__content' });
 
@@ -249,13 +277,97 @@ export class GraphConfigurator {
     ]);
 
     this.container.appendChild(header);
+    this.container.appendChild(toolbar);
     this.container.appendChild(content);
     this.container.appendChild(toastContainer);
     this.container.appendChild(unsavedModal);
     this.container.appendChild(screenshotModal);
+    this.container.appendChild(this._createTemplatesModal());
 
     // Initialize resizable panels
     this._initResizablePanels();
+  }
+
+  /**
+   * Create toolbar with chart type, data source tabs, and templates
+   */
+  _createToolbar() {
+    const toolbar = createElement('div', { className: 'ms-configurator__toolbar', id: 'ms-toolbar' });
+
+    // Chart type selector (primary position)
+    const chartTypes = getAvailableTypes();
+    const chartSelector = createElement('div', { className: 'ms-toolbar__chart-selector' }, [
+      createElement('label', { className: 'ms-toolbar__label' }, ['Chart:']),
+      createElement('select', { className: 'ms-select ms-toolbar__select', id: 'ms-toolbar-chart-type', 'data-field': 'type' },
+        chartTypes.map(type =>
+          createElement('option', { value: type.value }, [type.label])
+        )
+      ),
+    ]);
+
+    // Data source tabs
+    const dataTabs = createElement('div', { className: 'ms-toolbar__tabs', id: 'ms-data-tabs' }, [
+      this._createToolbarTab('sql', 'SQL Query', 'fa-database', true),
+      this._createToolbarTab('visual', 'Visual Builder', 'fa-cubes'),
+      this._createToolbarTab('upload', 'File Upload', 'fa-upload'),
+      this._createToolbarTab('api', 'API', 'fa-cloud'),
+      this._createToolbarTab('clipboard', 'Clipboard', 'fa-clipboard'),
+      this._createToolbarTab('websocket', 'Real-time', 'fa-bolt'),
+    ]);
+
+    // Templates button
+    const templatesBtn = createElement('button', {
+      className: 'ms-btn ms-btn--outline ms-toolbar__templates-btn',
+      id: 'ms-templates-btn',
+      title: 'Browse chart templates'
+    });
+    templatesBtn.innerHTML = `
+      <i class="fas fa-th-large"></i>
+      <span>Templates</span>
+    `;
+
+    toolbar.appendChild(chartSelector);
+    toolbar.appendChild(dataTabs);
+    toolbar.appendChild(templatesBtn);
+
+    return toolbar;
+  }
+
+  /**
+   * Create a toolbar tab button
+   */
+  _createToolbarTab(id, label, icon, active = false) {
+    const tab = createElement('button', {
+      className: `ms-toolbar__tab ${active ? 'active' : ''}`,
+      'data-tab': id,
+      title: label,
+    });
+    tab.innerHTML = `
+      <i class="fas ${icon}"></i>
+      <span>${label}</span>
+    `;
+    return tab;
+  }
+
+  /**
+   * Create templates modal
+   */
+  _createTemplatesModal() {
+    const modal = createElement('div', {
+      className: 'ms-modal ms-modal--templates',
+      id: 'ms-templates-modal',
+      style: 'display: none;'
+    }, [
+      createElement('div', { className: 'ms-modal__backdrop' }),
+      createElement('div', { className: 'ms-modal__content ms-modal__content--large' }, [
+        createElement('div', { className: 'ms-modal__header' }, [
+          createElement('h3', { className: 'ms-modal__title' }, ['Chart Templates']),
+          createElement('button', { className: 'ms-modal__close', id: 'ms-templates-modal-close' }, ['×']),
+        ]),
+        createElement('div', { className: 'ms-modal__body', id: 'ms-templates-container' }),
+      ]),
+    ]);
+    return modal;
   }
 
   _initResizablePanels() {
@@ -350,66 +462,271 @@ export class GraphConfigurator {
   _createSettingsPanel() {
     const panel = createElement('div', { className: 'ms-configurator__settings' });
 
-    // Basic Info Section
+    // Basic Info Section (Graph Type is in toolbar)
     panel.appendChild(this._createSection('Basic Info', [
       this._createField('text', 'name', 'Graph Name', 'Enter a name for this graph'),
-      this._createField('select', 'type', 'Graph Type', '', getAvailableTypes()),
     ]));
 
-    // Data Source Section
-    panel.appendChild(this._createSection('Data Source', [
-      createElement('div', { className: 'ms-field' }, [
-        createElement('label', { className: 'ms-field__label', for: 'ms-query' }, [
-          'SQL Query',
-          createElement('span', { className: 'ms-field__hint' }, ['Click tables/columns in Schema Explorer to build query']),
+    // Data Source Section - with multiple panels for different source types
+    const dataSection = this._createSection('Data Source', [
+      // SQL Panel (default visible)
+      createElement('div', { className: 'ms-data-panel active', id: 'ms-data-panel-sql', 'data-panel': 'sql' }, [
+        createElement('div', { className: 'ms-field' }, [
+          createElement('label', { className: 'ms-field__label', for: 'ms-query' }, [
+            'SQL Query',
+            createElement('span', { className: 'ms-field__hint' }, ['Click tables/columns in Schema Explorer to build query']),
+          ]),
+          this._createSQLEditor(),
         ]),
-        this._createSQLEditor(),
+        createElement('div', { className: 'ms-field__row' }, [
+          createElement(
+            'button',
+            {
+              className: 'ms-btn ms-btn--secondary',
+              id: 'ms-test-query-btn',
+            },
+            ['Test Query']
+          ),
+          createElement(
+            'button',
+            {
+              className: 'ms-btn ms-btn--outline',
+              id: 'ms-clear-query-btn',
+            },
+            ['Clear']
+          ),
+          createElement('span', { className: 'ms-query-status', id: 'ms-query-status' }),
+        ]),
+        this._createVariablesPanel(),
+        this._createLimitSlider(),
       ]),
-      createElement('div', { className: 'ms-field__row' }, [
-        createElement(
-          'button',
-          {
-            className: 'ms-btn ms-btn--secondary',
-            id: 'ms-test-query-btn',
-          },
-          ['Test Query']
-        ),
-        createElement(
-          'button',
-          {
-            className: 'ms-btn ms-btn--outline',
-            id: 'ms-clear-query-btn',
-          },
-          ['Clear']
-        ),
-        createElement('span', { className: 'ms-query-status', id: 'ms-query-status' }),
-      ]),
-      this._createVariablesPanel(),
-      this._createLimitSlider(),
-      this._createField('select', 'xColumn', 'X-Axis Column', '', []),
-      this._createField('select', 'yColumn', 'Y-Axis Column', '', []),
-    ]));
 
-    // Appearance Section
-    panel.appendChild(this._createSection('Appearance', [
+      // Visual Query Builder Panel
+      createElement('div', { className: 'ms-data-panel', id: 'ms-data-panel-visual', 'data-panel': 'visual' }, [
+        createElement('div', { id: 'ms-query-builder-container' }),
+      ]),
+
+      // File Upload Panel
+      createElement('div', { className: 'ms-data-panel', id: 'ms-data-panel-upload', 'data-panel': 'upload' }, [
+        createElement('div', { id: 'ms-file-uploader-container' }),
+      ]),
+
+      // API Panel
+      createElement('div', { className: 'ms-data-panel', id: 'ms-data-panel-api', 'data-panel': 'api' }, [
+        createElement('div', { id: 'ms-api-connector-container' }),
+      ]),
+
+      // Clipboard Panel
+      createElement('div', { className: 'ms-data-panel', id: 'ms-data-panel-clipboard', 'data-panel': 'clipboard' }, [
+        createElement('div', { id: 'ms-clipboard-paste-container' }),
+      ]),
+
+      // WebSocket Panel
+      createElement('div', { className: 'ms-data-panel', id: 'ms-data-panel-websocket', 'data-panel': 'websocket' }, [
+        createElement('div', { id: 'ms-websocket-connector-container' }),
+      ]),
+
+      // Column mapping (shared across all data sources)
+      createElement('div', { className: 'ms-data-mapping' }, [
+        this._createField('select', 'xColumn', 'X-Axis Column', '', []),
+        this._createField('select', 'yColumn', 'Y-Axis Column', '', []),
+      ]),
+    ]);
+    panel.appendChild(dataSection);
+
+    // Appearance Section - with dynamic options based on chart type
+    const appearanceSection = this._createSection('Appearance', [
       this._createField('text', 'title', 'Chart Title', 'Enter chart title'),
-      this._createField('select', 'orientation', 'Orientation', '', [
-        { value: 'vertical', label: 'Vertical' },
-        { value: 'horizontal', label: 'Horizontal' },
+      // Options container with chart-type-specific visibility
+      createElement('div', { className: 'ms-chart-options', id: 'ms-chart-options' }, [
+        // Axis-based charts (bar, line, area, scatter, heatmap, candlestick)
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-orientation', 'data-charts': 'bar' }, [
+          this._createField('select', 'orientation', 'Orientation', '', [
+            { value: 'vertical', label: 'Vertical' },
+            { value: 'horizontal', label: 'Horizontal' },
+          ]),
+        ]),
+        // Line/Area specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-smooth', 'data-charts': 'line,area' }, [
+          this._createField('checkbox', 'smooth', 'Smooth Lines'),
+        ]),
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-area-style', 'data-charts': 'area' }, [
+          this._createField('select', 'areaOpacity', 'Fill Opacity', '', [
+            { value: '0.1', label: '10%' },
+            { value: '0.3', label: '30%' },
+            { value: '0.5', label: '50%' },
+            { value: '0.7', label: '70%' },
+            { value: '1', label: '100%' },
+          ]),
+        ]),
+        // Pie/Donut specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-pie', 'data-charts': 'pie,donut' }, [
+          this._createField('select', 'labelPosition', 'Label Position', '', [
+            { value: 'outside', label: 'Outside' },
+            { value: 'inside', label: 'Inside' },
+            { value: 'center', label: 'Center (Donut)' },
+          ]),
+          this._createField('checkbox', 'roseType', 'Nightingale Mode'),
+        ]),
+        // Donut inner radius
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-donut-radius', 'data-charts': 'donut' }, [
+          this._createField('select', 'innerRadius', 'Inner Radius', '', [
+            { value: '30%', label: 'Small (30%)' },
+            { value: '50%', label: 'Medium (50%)' },
+            { value: '70%', label: 'Large (70%)' },
+          ]),
+        ]),
+        // Scatter specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-scatter', 'data-charts': 'scatter' }, [
+          this._createField('select', 'symbolSize', 'Point Size', '', [
+            { value: '5', label: 'Small' },
+            { value: '10', label: 'Medium' },
+            { value: '20', label: 'Large' },
+            { value: '30', label: 'Extra Large' },
+          ]),
+        ]),
+        // Radar specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-radar', 'data-charts': 'radar' }, [
+          this._createField('select', 'radarShape', 'Shape', '', [
+            { value: 'polygon', label: 'Polygon' },
+            { value: 'circle', label: 'Circle' },
+          ]),
+          this._createField('checkbox', 'radarFill', 'Fill Area'),
+        ]),
+        // Gauge specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-gauge', 'data-charts': 'gauge' }, [
+          this._createField('select', 'gaugeStyle', 'Gauge Style', '', [
+            { value: 'default', label: 'Default' },
+            { value: 'progress', label: 'Progress Bar' },
+            { value: 'grade', label: 'Grade' },
+          ]),
+          this._createField('checkbox', 'gaugePointer', 'Show Pointer'),
+        ]),
+        // Funnel specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-funnel', 'data-charts': 'funnel' }, [
+          this._createField('select', 'funnelAlign', 'Alignment', '', [
+            { value: 'center', label: 'Center' },
+            { value: 'left', label: 'Left' },
+            { value: 'right', label: 'Right' },
+          ]),
+          this._createField('select', 'funnelSort', 'Sort Order', '', [
+            { value: 'descending', label: 'Descending (Top Wide)' },
+            { value: 'ascending', label: 'Ascending (Top Narrow)' },
+            { value: 'none', label: 'None' },
+          ]),
+        ]),
+        // Candlestick specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-candlestick', 'data-charts': 'candlestick' }, [
+          this._createField('checkbox', 'showDataZoom', 'Show Zoom Slider'),
+        ]),
+        // Heatmap specific
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-heatmap', 'data-charts': 'heatmap' }, [
+          this._createField('checkbox', 'heatmapLabels', 'Show Cell Values'),
+        ]),
       ]),
-      this._createField('checkbox', 'showLegend', 'Show Legend'),
-      this._createField('select', 'legendPosition', 'Legend Position', '', [
-        { value: 'top', label: 'Top' },
-        { value: 'bottom', label: 'Bottom' },
-        { value: 'left', label: 'Left' },
-        { value: 'right', label: 'Right' },
+      // Common options for all chart types
+      createElement('div', { className: 'ms-common-options' }, [
+        this._createField('checkbox', 'showLegend', 'Show Legend'),
+        createElement('div', { className: 'ms-option-group', id: 'ms-option-legend-pos' }, [
+          this._createField('select', 'legendPosition', 'Legend Position', '', [
+            { value: 'top', label: 'Top' },
+            { value: 'bottom', label: 'Bottom' },
+            { value: 'left', label: 'Left' },
+            { value: 'right', label: 'Right' },
+          ]),
+        ]),
+        this._createField('checkbox', 'showLabels', 'Show Data Labels'),
+        this._createField('checkbox', 'animation', 'Enable Animation'),
       ]),
-      this._createField('checkbox', 'showLabels', 'Show Data Labels'),
-      this._createField('checkbox', 'animation', 'Enable Animation'),
-      this._createColorPicker(),
-    ]));
+      // Theme section integrated into Appearance
+      this._createThemeSection(),
+    ]);
+    panel.appendChild(appearanceSection);
 
     return panel;
+  }
+
+  /**
+   * Create the theme configuration section
+   * Includes both preset theme selector and comprehensive Theme Builder
+   */
+  _createThemeSection() {
+    const themeContainer = createElement('div', { className: 'ms-theme-section' });
+
+    // Theme mode toggle (Preset / Custom Builder)
+    const modeToggle = createElement('div', { className: 'ms-theme-mode-toggle' }, [
+      createElement('button', {
+        className: 'ms-theme-mode-btn active',
+        'data-mode': 'preset',
+        title: 'Use preset themes',
+      }, ['Presets']),
+      createElement('button', {
+        className: 'ms-theme-mode-btn',
+        'data-mode': 'builder',
+        title: 'Build custom theme',
+      }, ['Theme Builder']),
+    ]);
+
+    // Preset theme panel
+    const presetPanel = createElement('div', {
+      className: 'ms-theme-panel ms-theme-panel--preset active',
+      'data-theme-panel': 'preset',
+    }, [
+      createElement('div', { className: 'ms-field' }, [
+        createElement('label', { className: 'ms-field__label', for: 'ms-theme' }, ['Chart Theme']),
+        createElement('div', { className: 'ms-theme-selector' }, [
+          createElement('select', {
+            className: 'ms-select',
+            id: 'ms-theme',
+            'data-field': 'theme'
+          }, getAvailableThemes().map(t =>
+            createElement('option', { value: t.value }, [t.label])
+          )),
+        ]),
+      ]),
+      // Theme preview swatches (shows theme colors)
+      createElement('div', { className: 'ms-theme-preview', id: 'ms-theme-preview' }),
+    ]);
+
+    // Theme Builder panel
+    const builderPanel = createElement('div', {
+      className: 'ms-theme-panel ms-theme-panel--builder',
+      'data-theme-panel': 'builder',
+    }, [
+      createElement('div', { className: 'ms-theme-builder-container', id: 'ms-theme-builder-container' }),
+    ]);
+
+    themeContainer.appendChild(modeToggle);
+    themeContainer.appendChild(presetPanel);
+    themeContainer.appendChild(builderPanel);
+
+    return themeContainer;
+  }
+
+  /**
+   * Initialize Theme Builder component
+   */
+  _initThemeBuilder() {
+    const container = document.getElementById('ms-theme-builder-container');
+    if (!container || this.themeBuilder) return;
+
+    this.themeBuilder = new ThemeBuilder(container, {
+      onChange: (config) => {
+        // Live preview of theme changes
+        this.state.themeConfig = config;
+        this._markDirty();
+      },
+      onApply: (themeName, config) => {
+        // Apply the custom theme to the chart
+        this.state.theme = themeName;
+        this.state.themeConfig = config;
+        if (this.graph) {
+          this.graph.setTheme(themeName);
+        }
+        this._markDirty();
+        this._showToast('Custom theme applied', 'success');
+      },
+    });
   }
 
   _createPreviewPanel() {
@@ -601,28 +918,39 @@ export class GraphConfigurator {
     return field;
   }
 
-  _createColorPicker() {
-    const field = createElement('div', { className: 'ms-field' }, [
-      createElement('div', { id: 'ms-color-palette-container' }),
-    ]);
-    return field;
-  }
+  /**
+   * Update theme preview swatches to show the current theme's color palette
+   */
+  _updateThemePreview(themeName) {
+    const previewContainer = document.getElementById('ms-theme-preview');
+    if (!previewContainer) return;
 
-  _initColorPalette() {
-    const container = document.getElementById('ms-color-palette-container');
-    if (!container) return;
+    const themeDef = getThemeDefinition(themeName);
+    const colors = themeDef?.color || defaultColorPalette;
 
-    this.colorPalette = new ColorPalette(container, {
-      apiEndpoint: this.options.colorsEndpoint,
-      showManager: true,
-      allowCustom: true,
-      maxColors: 12,
-      onColorsChange: (colors) => {
-        this.state.colors = colors;
-        this._updatePreview();
-        this._markDirty();
-      },
+    previewContainer.innerHTML = '';
+
+    // Create color swatches
+    const swatchRow = createElement('div', { className: 'ms-theme-swatches' });
+    colors.slice(0, 10).forEach(color => {
+      const swatch = createElement('span', {
+        className: 'ms-theme-swatch',
+        style: `background-color: ${color}`,
+        title: color
+      });
+      swatchRow.appendChild(swatch);
     });
+
+    // Show theme info
+    const info = createElement('div', { className: 'ms-theme-info' });
+    if (themeDef?.backgroundColor && themeDef.backgroundColor !== 'transparent' && themeDef.backgroundColor !== 'rgba(0,0,0,0)') {
+      info.innerHTML = `<span class="ms-theme-bg-preview" style="background-color: ${themeDef.backgroundColor}"></span> Background`;
+    }
+
+    previewContainer.appendChild(swatchRow);
+    if (info.innerHTML) {
+      previewContainer.appendChild(info);
+    }
   }
 
   _createSQLEditor() {
@@ -852,8 +1180,27 @@ export class GraphConfigurator {
         legendPosition: this.state.legendPosition,
         showLabels: this.state.showLabels,
         animation: this.state.animation,
-        colors: this.state.colors,
+        theme: this.state.theme,
       });
+
+      // Initialize drill-down after graph is ready
+      if (this.graph.chart && this.drillDownConfig) {
+        this.drillDown = new DrillDown({
+          chart: this.graph.chart,
+          ...this.drillDownConfig,
+        });
+
+        // Add drill-down breadcrumb container if not exists
+        const previewHeader = chartContainer.parentElement?.querySelector('.ms-preview__header');
+        if (previewHeader && !document.getElementById('ms-drilldown-breadcrumb')) {
+          const breadcrumbDiv = createElement('div', {
+            className: 'ms-drilldown-breadcrumb',
+            id: 'ms-drilldown-breadcrumb',
+          });
+          previewHeader.insertAdjacentElement('afterend', breadcrumbDiv);
+          this.drillDown.setBreadcrumbContainer(breadcrumbDiv);
+        }
+      }
     }
   }
 
@@ -914,6 +1261,166 @@ export class GraphConfigurator {
         schemaPanel.style.width = savedWidths.schema + 'px';
       }
     });
+  }
+
+  /**
+   * Initialize the DataSourcePanel for file upload, API, clipboard, and WebSocket
+   */
+  _initDataSourcePanel() {
+    // Initialize file uploader
+    const fileUploaderContainer = document.getElementById('ms-file-uploader-container');
+    if (fileUploaderContainer) {
+      this.dataSourcePanel = new DataSourcePanel(fileUploaderContainer, {
+        onDataLoaded: (data, columns, sourceType) => {
+          this._handleDataLoaded(data, columns, sourceType);
+        },
+        onError: (error) => {
+          this._showToast(error, 'error');
+        },
+      });
+    }
+  }
+
+  /**
+   * Initialize the Visual Query Builder
+   */
+  _initQueryBuilder() {
+    const queryBuilderContainer = document.getElementById('ms-query-builder-container');
+    if (queryBuilderContainer && this.schemaExplorer) {
+      // We need to wait for schema to be loaded
+      // The QueryBuilder will be initialized when schema data is available
+      this.queryBuilder = new QueryBuilder(queryBuilderContainer, {
+        schemaEndpoint: this.options.schemaEndpoint,
+        onQueryChange: (queryObj) => {
+          // Two-way sync: Visual → SQL
+          this._syncQueryToSQL(queryObj);
+        },
+        onExecute: (queryObj) => {
+          this._testQuery();
+        },
+      });
+    }
+  }
+
+  /**
+   * Initialize drill-down functionality
+   */
+  _initDrillDown() {
+    // Will be initialized after graph is created
+    // Stored for later use when graph is ready
+    this.drillDownConfig = {
+      onDrillDown: (info) => {
+        this._handleDrillDown(info);
+      },
+      onDrillUp: (info) => {
+        this._handleDrillUp(info);
+      },
+      onPathChange: (path) => {
+        this._updateDrillDownBreadcrumb(path);
+      },
+    };
+  }
+
+  /**
+   * Handle data loaded from any data source
+   */
+  _handleDataLoaded(data, columns, sourceType) {
+    this.state.data = data;
+    this.state.columns = columns;
+    this.state.dataSourceType = sourceType;
+
+    // Update column selectors
+    this._updateColumnSelectors(columns);
+
+    // Auto-select columns if not set
+    if (columns.length >= 2 && !this.state.xColumn && !this.state.yColumn) {
+      this.state.xColumn = columns[0];
+      this.state.yColumn = columns[1];
+      document.getElementById('ms-xColumn').value = columns[0];
+      document.getElementById('ms-yColumn').value = columns[1];
+    }
+
+    // Update preview
+    if (data.length > 0) {
+      this.graph.setData(data, this.state.xColumn, this.state.yColumn);
+    }
+
+    this._showToast(`Loaded ${data.length} rows from ${sourceType}`, 'success');
+    this._markDirty();
+  }
+
+  /**
+   * Sync visual query builder to SQL editor
+   */
+  _syncQueryToSQL(queryObj) {
+    if (!queryObj) return;
+
+    // Import the SQL generator
+    import('./QueryBuilder/SqlGenerator.js').then(({ generateSQL }) => {
+      const sql = generateSQL(queryObj);
+      const queryTextarea = document.getElementById('ms-query');
+      if (queryTextarea && sql) {
+        queryTextarea.value = sql;
+        this.state.query = sql;
+        this._updateSQLHighlight();
+        this._autoResizeEditor();
+        this._updateLimitSliderVisibility();
+        this._updateVariablesPanel();
+        this._markDirty();
+      }
+    });
+  }
+
+  /**
+   * Sync SQL editor to visual query builder
+   */
+  _syncSQLToQuery() {
+    if (!this.queryBuilder) return;
+
+    const sql = this.state.query;
+    if (!sql) return;
+
+    // Import the SQL parser
+    import('./QueryBuilder/SqlParser.js').then(({ parseSQL }) => {
+      const queryObj = parseSQL(sql);
+      if (queryObj && this.queryBuilder.setQuery) {
+        this.queryBuilder.setQuery(queryObj);
+      }
+    });
+  }
+
+  /**
+   * Handle drill-down click
+   */
+  _handleDrillDown(info) {
+    console.log('Drill down:', info);
+    // Apply filter and refresh data
+    if (this.state.query && info.filter) {
+      const whereClause = this.drillDown?.buildWhereClause();
+      if (whereClause) {
+        // TODO: Append WHERE clause to query and re-execute
+        this._showToast(`Drilling into: ${info.filter.filterValue || info.params.name}`, 'info');
+      }
+    }
+  }
+
+  /**
+   * Handle drill-up click
+   */
+  _handleDrillUp(info) {
+    console.log('Drill up:', info);
+    this._showToast('Drilling up one level', 'info');
+  }
+
+  /**
+   * Update drill-down breadcrumb display
+   */
+  _updateDrillDownBreadcrumb(path) {
+    // Breadcrumb will be shown in preview panel if drill-down is active
+    const breadcrumbContainer = document.getElementById('ms-drilldown-breadcrumb');
+    if (breadcrumbContainer && this.drillDown) {
+      this.drillDown.setBreadcrumbContainer(breadcrumbContainer);
+    }
   }
 
   _insertIntoQuery(text) {
@@ -1106,13 +1613,19 @@ export class GraphConfigurator {
         } else {
           this.state[field] = e.target.value;
         }
+
+        // Update theme preview when theme changes
+        if (field === 'theme') {
+          this._updateThemePreview(e.target.value);
+        }
+
         this._updatePreview();
         this._markDirty();
       }
     });
 
-    // Color palette
-    this._initColorPalette();
+    // Initialize theme preview for default theme
+    this._updateThemePreview(this.state.theme);
 
     // X/Y Column selectors - refresh graph when changed
     const xSelect = document.getElementById('ms-xColumn');
@@ -1250,10 +1763,276 @@ export class GraphConfigurator {
     document.getElementById('ms-export-json-btn')?.addEventListener('click', () => {
       this._exportJSON();
     });
+
+    // Toolbar tab switching
+    this._bindToolbarTabs();
+
+    // Templates modal
+    this._bindTemplatesModal();
+
+    // Theme mode toggle (Presets / Theme Builder)
+    this._bindThemeModeToggle();
+
+    // Chart type change (from toolbar selector)
+    const toolbarChartType = document.getElementById('ms-toolbar-chart-type');
+    toolbarChartType?.addEventListener('change', (e) => {
+      this.state.type = e.target.value;
+      this._updateOptionsVisibility(e.target.value);
+      this._updatePreview();
+      this._markDirty();
+    });
+
+    // Initialize options visibility for default chart type
+    this._updateOptionsVisibility(this.state.type);
+  }
+
+  /**
+   * Update visibility of chart-type-specific options
+   */
+  _updateOptionsVisibility(chartType) {
+    const optionGroups = document.querySelectorAll('.ms-option-group[data-charts]');
+
+    optionGroups.forEach(group => {
+      const supportedCharts = group.dataset.charts.split(',').map(c => c.trim());
+      const isSupported = supportedCharts.includes(chartType);
+      group.style.display = isSupported ? '' : 'none';
+    });
+
+    // Special cases for legend (not applicable to gauge)
+    const legendPosGroup = document.getElementById('ms-option-legend-pos');
+    if (legendPosGroup) {
+      legendPosGroup.style.display = chartType === 'gauge' ? 'none' : '';
+    }
+
+    // Update data mapping labels based on chart type
+    this._updateDataMappingLabels(chartType);
+  }
+
+  /**
+   * Update data mapping labels based on chart type
+   */
+  _updateDataMappingLabels(chartType) {
+    const xColumnField = document.querySelector('[data-field="xColumn"]')?.closest('.ms-field');
+    const yColumnField = document.querySelector('[data-field="yColumn"]')?.closest('.ms-field');
+
+    if (!xColumnField || !yColumnField) return;
+
+    const xLabel = xColumnField.querySelector('.ms-field__label');
+    const yLabel = yColumnField.querySelector('.ms-field__label');
+
+    // Update labels based on chart type
+    const labelMappings = {
+      pie: { x: 'Category Column', y: 'Value Column' },
+      donut: { x: 'Category Column', y: 'Value Column' },
+      funnel: { x: 'Stage Column', y: 'Value Column' },
+      gauge: { x: 'Label Column', y: 'Value Column' },
+      radar: { x: 'Indicator Column', y: 'Value Column' },
+      scatter: { x: 'X Values', y: 'Y Values' },
+      heatmap: { x: 'X Category', y: 'Y Category' },
+      candlestick: { x: 'Date Column', y: 'OHLC Column' },
+      default: { x: 'X-Axis Column', y: 'Y-Axis Column' },
+    };
+
+    const mapping = labelMappings[chartType] || labelMappings.default;
+    if (xLabel) xLabel.textContent = mapping.x;
+    if (yLabel) yLabel.textContent = mapping.y;
+  }
+
+  /**
+   * Bind toolbar tab switching events
+   */
+  _bindToolbarTabs() {
+    const tabs = document.querySelectorAll('.ms-toolbar__tab');
+    const panels = document.querySelectorAll('.ms-data-panel');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabId = tab.dataset.tab;
+
+        // Update active tab
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Update active panel
+        panels.forEach(panel => {
+          if (panel.dataset.panel === tabId) {
+            panel.classList.add('active');
+          } else {
+            panel.classList.remove('active');
+          }
+        });
+
+        // Track active panel
+        this.activeDataPanel = tabId;
+
+        // Show/hide schema explorer based on tab
+        const schemaPanel = document.getElementById('ms-schema-panel');
+        const schemaResizer = document.getElementById('ms-resizer-schema');
+        if (schemaPanel && schemaResizer) {
+          const showSchema = ['sql', 'visual'].includes(tabId);
+          schemaPanel.style.display = showSchema ? '' : 'none';
+          schemaResizer.style.display = showSchema ? '' : 'none';
+        }
+
+        // Sync SQL to visual builder when switching to visual tab
+        if (tabId === 'visual' && this.state.query) {
+          this._syncSQLToQuery();
+        }
+      });
+    });
+  }
+
+  /**
+   * Bind theme mode toggle events (Presets / Theme Builder)
+   */
+  _bindThemeModeToggle() {
+    const modeButtons = document.querySelectorAll('.ms-theme-mode-btn');
+    const themePanels = document.querySelectorAll('.ms-theme-panel');
+
+    modeButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+
+        // Update active button
+        modeButtons.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Update active panel
+        themePanels.forEach((panel) => {
+          const panelMode = panel.dataset.themePanel;
+          panel.classList.toggle('active', panelMode === mode);
+        });
+
+        // Initialize Theme Builder when switching to builder mode (lazy loading)
+        if (mode === 'builder') {
+          this._initThemeBuilder();
+        }
+      });
+    });
+  }
+
+  /**
+   * Bind templates modal events
+   */
+  _bindTemplatesModal() {
+    const templatesBtn = document.getElementById('ms-templates-btn');
+    const templatesModal = document.getElementById('ms-templates-modal');
+    const templatesContainer = document.getElementById('ms-templates-container');
+    const closeBtn = document.getElementById('ms-templates-modal-close');
+
+    // Open modal
+    templatesBtn?.addEventListener('click', () => {
+      if (templatesModal) {
+        templatesModal.style.display = 'flex';
+
+        // Initialize template selector if not already done
+        if (!this.templateSelector && templatesContainer) {
+          this.templateSelector = new TemplateSelector(templatesContainer, {
+            showPreview: true,
+            onTemplateSelect: (template) => {
+              this._applyTemplate(template);
+              templatesModal.style.display = 'none';
+            },
+          });
+        }
+      }
+    });
+
+    // Close modal
+    closeBtn?.addEventListener('click', () => {
+      if (templatesModal) {
+        templatesModal.style.display = 'none';
+      }
+    });
+
+    // Close on backdrop click
+    templatesModal?.querySelector('.ms-modal__backdrop')?.addEventListener('click', () => {
+      templatesModal.style.display = 'none';
+    });
+  }
+
+  /**
+   * Apply a template to the current configuration
+   */
+  _applyTemplate(template) {
+    if (!template || !template.config) return;
+
+    // Apply chart type
+    if (template.chartType) {
+      this.state.type = template.chartType === 'donut' ? 'donut' : template.chartType;
+      const toolbarTypeSelect = document.getElementById('ms-toolbar-chart-type');
+      if (toolbarTypeSelect) toolbarTypeSelect.value = this.state.type;
+      this._updateOptionsVisibility(this.state.type);
+    }
+
+    // Apply title
+    if (template.config.title?.text) {
+      this.state.title = template.config.title.text;
+      const titleInput = document.getElementById('ms-title');
+      if (titleInput) titleInput.value = this.state.title;
+    }
+
+    // Apply legend settings
+    if (template.config.legend) {
+      this.state.showLegend = true;
+      const showLegendCheckbox = document.getElementById('ms-showLegend');
+      if (showLegendCheckbox) showLegendCheckbox.checked = true;
+
+      if (template.config.legend.orient === 'vertical' && template.config.legend.right !== undefined) {
+        this.state.legendPosition = 'right';
+      } else if (template.config.legend.top === 'bottom') {
+        this.state.legendPosition = 'bottom';
+      } else {
+        this.state.legendPosition = 'top';
+      }
+      const legendPosSelect = document.getElementById('ms-legendPosition');
+      if (legendPosSelect) legendPosSelect.value = this.state.legendPosition;
+    }
+
+    // Apply sample data if available
+    if (template.config.series && template.config.series.length > 0) {
+      const series = template.config.series[0];
+      if (series.data) {
+        // Transform to row format for the graph
+        const xData = template.config.xAxis?.data ||
+          (Array.isArray(series.data[0]) ? series.data.map((_, i) => `Point ${i + 1}`) :
+            series.data.map((d, i) => d.name || `Item ${i + 1}`));
+
+        const yData = Array.isArray(series.data[0]) ?
+          series.data.map(d => d[1]) :
+          series.data.map(d => typeof d === 'object' ? d.value : d);
+
+        this.state.data = xData.map((x, i) => ({
+          category: x,
+          value: yData[i] || 0
+        }));
+        this.state.columns = ['category', 'value'];
+        this.state.xColumn = 'category';
+        this.state.yColumn = 'value';
+
+        this._updateColumnSelectors(['category', 'value']);
+        document.getElementById('ms-xColumn').value = 'category';
+        document.getElementById('ms-yColumn').value = 'value';
+      }
+    }
+
+    // Update preview
+    this._updatePreview();
+    if (this.state.data.length > 0) {
+      this.graph.setData(this.state.data, this.state.xColumn, this.state.yColumn);
+    }
+
+    this._markDirty();
+    this._showToast(`Applied template: ${template.name}`, 'success');
   }
 
   _updatePreview() {
     if (!this.graph) return;
+
+    // Handle theme change (requires re-initialization)
+    if (this.state.theme) {
+      this.graph.setTheme(this.state.theme);
+    }
 
     this.graph.setOptions({
       type: this.state.type,
@@ -1263,7 +2042,6 @@ export class GraphConfigurator {
       legendPosition: this.state.legendPosition,
       showLabels: this.state.showLabels,
       animation: this.state.animation,
-      colors: this.state.colors,
     });
   }
 
@@ -1636,9 +2414,11 @@ export class GraphConfigurator {
       this._updateVariablesPanel();
     }
 
-    // Update color palette if loaded
-    if (this.colorPalette && this.state.colors?.length) {
-      this.colorPalette.setColors(this.state.colors);
+    // Update theme preview
+    if (this.state.theme) {
+      this._updateThemePreview(this.state.theme);
+      const themeSelect = document.getElementById('ms-theme');
+      if (themeSelect) themeSelect.value = this.state.theme;
     }
 
     // Update preview name
@@ -1793,7 +2573,7 @@ export class GraphConfigurator {
       legendPosition: this.state.legendPosition,
       showLabels: this.state.showLabels,
       animation: this.state.animation,
-      colors: this.state.colors,
+      theme: this.state.theme,
     });
   }
 
@@ -1819,7 +2599,7 @@ export class GraphConfigurator {
           legendPosition: this.state.legendPosition,
           showLabels: this.state.showLabels,
           animation: this.state.animation,
-          colors: this.state.colors,
+          theme: this.state.theme,
         },
         data_query: this.state.query,
         x_column: this.state.xColumn,
@@ -1977,7 +2757,7 @@ export class GraphConfigurator {
       legendPosition: 'top',
       showLabels: false,
       animation: true,
-      colors: [],
+      theme: 'default',
       data: [],
       columns: [],
       variables: {},
@@ -2000,13 +2780,15 @@ export class GraphConfigurator {
       }
     });
 
-    // Reset color palette
-    if (this.colorPalette) {
-      this.colorPalette.setColors([]);
-    }
+    // Reset theme to default
+    this.state.theme = 'default';
+    const themeSelect = document.getElementById('ms-theme');
+    if (themeSelect) themeSelect.value = 'default';
+    this._updateThemePreview('default');
 
     // Reset preview graph
     if (this.graph) {
+      this.graph.setTheme('default');
       this.graph.setData([10, 20, 30, 40, 50], null, null);
       this.graph.setOptions({
         type: 'bar',
@@ -2408,7 +3190,7 @@ export class GraphConfigurator {
       legendPosition: this.state.legendPosition,
       showLabels: this.state.showLabels,
       animation: this.state.animation,
-      colors: this.state.colors,
+      theme: this.state.theme,
       data: this.state.data,
       xAxis: {
         data: this.state.data.map(row => row[this.state.xColumn]),
@@ -2458,9 +3240,6 @@ export class GraphConfigurator {
   destroy() {
     if (this.graph) {
       this.graph.destroy();
-    }
-    if (this.colorPalette) {
-      this.colorPalette.destroy();
     }
     this.container.innerHTML = '';
   }

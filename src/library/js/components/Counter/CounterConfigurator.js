@@ -73,6 +73,9 @@ export class CounterConfigurator {
       format1: 'integer',
       icon1: '',
       staticValue1: '',
+      cardColor1: 'blue',
+      cardTitle1: '',
+      cardDescription1: '',
       // Counter 2
       valueColumn2: 'count_2',
       label2: '',
@@ -81,6 +84,9 @@ export class CounterConfigurator {
       format2: 'integer',
       icon2: '',
       staticValue2: '',
+      cardColor2: 'teal',
+      cardTitle2: '',
+      cardDescription2: '',
       // Counter 3
       valueColumn3: 'count_3',
       label3: '',
@@ -89,6 +95,9 @@ export class CounterConfigurator {
       format3: 'integer',
       icon3: '',
       staticValue3: '',
+      cardColor3: 'purple',
+      cardTitle3: '',
+      cardDescription3: '',
       // Data
       data: null,
       columns: [],
@@ -293,7 +302,6 @@ export class CounterConfigurator {
 
     // Preview panel (right)
     const preview = this._createPreviewPanel();
-    preview.id = 'ms-preview-panel';
 
     content.appendChild(schemaPanel);
     content.appendChild(resizer1);
@@ -309,12 +317,12 @@ export class CounterConfigurator {
 
   _createPreviewPanel() {
     // Create container for PreviewPanel component
-    const panel = createElement('div', { id: 'ms-preview-panel-container' });
+    const panel = createElement('div', { id: 'ms-preview-panel' });
     return panel;
   }
 
   _initPreviewPanel() {
-    const panelContainer = document.getElementById('ms-preview-panel-container');
+    const panelContainer = document.getElementById('ms-preview-panel');
     if (!panelContainer) return;
 
     this.previewPanel = new PreviewPanel(panelContainer, {
@@ -559,9 +567,8 @@ export class CounterConfigurator {
   }
 
   _createCounterSection(num) {
-    const icons = Counter.getAvailableIcons();
     const formats = Counter.getAvailableFormats();
-    const iconOptions = [{ value: '', label: 'None' }, ...icons];
+    const cardColors = Counter.getCardColors();
 
     const section = createElement('div', { className: 'ms-section ms-section--counter' });
 
@@ -584,27 +591,165 @@ export class CounterConfigurator {
 
     const content = createElement('div', { className: 'ms-section__content' });
 
-    // Row 1: Label & Column
+    // Row 1: Card Color Picker
+    content.appendChild(this._createCardColorPicker(num, cardColors));
+
+    // Row 2: Label & Column
     content.appendChild(createElement('div', { className: 'ms-field-row' }, [
-      this._createField('text', `label${num}`, 'Label', 'e.g. Total Sales'),
-      this._createField('text', `valueColumn${num}`, 'Column', `count_${num}`),
+      this._createField('text', `label${num}`, 'Metric Label', 'e.g. TOTAL USERS'),
+      this._createField('text', `valueColumn${num}`, 'Value Column', `count_${num}`),
     ]));
 
-    // Row 2: Prefix, Suffix, Static
+    // Row 3: Prefix, Suffix, Static
     content.appendChild(createElement('div', { className: 'ms-field-row ms-field-row--3' }, [
       this._createField('text', `prefix${num}`, 'Prefix', '$'),
       this._createField('text', `suffix${num}`, 'Suffix', '%'),
-      this._createField('text', `staticValue${num}`, 'Static', ''),
+      this._createField('text', `staticValue${num}`, 'Static Value', ''),
     ]));
 
-    // Row 3: Format & Icon
-    content.appendChild(createElement('div', { className: 'ms-field-row' }, [
+    // Row 4: Format
+    content.appendChild(createElement('div', { className: 'ms-field' }, [
       this._createField('select', `format${num}`, 'Format', '', formats),
-      this._createField('select', `icon${num}`, 'Icon', '', iconOptions),
+    ]));
+
+    // Row 5: Icon Picker
+    content.appendChild(this._createIconPicker(num));
+
+    // Row 6: Card Footer (title and description)
+    content.appendChild(createElement('div', { className: 'ms-field-row' }, [
+      this._createField('text', `cardTitle${num}`, 'Card Title', 'e.g. User Statistics'),
+      this._createField('text', `cardDescription${num}`, 'Description', 'Optional description'),
     ]));
 
     section.appendChild(content);
     return section;
+  }
+
+  _createCardColorPicker(num, cardColors) {
+    const field = `cardColor${num}`;
+    const defaultColors = ['blue', 'teal', 'purple'];
+    const defaultColor = defaultColors[num - 1] || 'blue';
+
+    const container = createElement('div', { className: 'ms-field' });
+    container.appendChild(createElement('label', { className: 'ms-field__label' }, ['Card Color']));
+
+    const picker = createElement('div', { className: 'ms-card-color-picker', 'data-color-picker-for': field });
+
+    cardColors.forEach(color => {
+      const btn = createElement('button', {
+        type: 'button',
+        className: `ms-card-color-btn ms-card-color-btn--${color.name} ${color.name === defaultColor ? 'is-active' : ''}`,
+        'data-field': field,
+        'data-color': color.name,
+        title: color.label,
+      });
+      picker.appendChild(btn);
+    });
+
+    container.appendChild(picker);
+    return container;
+  }
+
+  _createIconPicker(num) {
+    const icons = Counter.getAvailableIcons();
+    const categories = Counter.getIconCategories();
+    const field = `icon${num}`;
+
+    const container = createElement('div', { className: 'ms-field ms-icon-picker', 'data-picker-field': field });
+    container.appendChild(createElement('label', { className: 'ms-field__label' }, ['Icon']));
+
+    // Controls row: Category filter + Search
+    const controls = createElement('div', { className: 'ms-icon-picker__controls' });
+
+    // Category dropdown
+    const categorySelect = createElement('select', {
+      className: 'ms-icon-picker__category ms-select',
+      'data-category-for': field,
+    });
+    categorySelect.appendChild(createElement('option', { value: 'all' }, ['All Categories']));
+    categories.forEach(cat => {
+      categorySelect.appendChild(createElement('option', { value: cat.value }, [cat.label]));
+    });
+    controls.appendChild(categorySelect);
+
+    // Search input
+    const searchInput = createElement('input', {
+      type: 'text',
+      className: 'ms-icon-picker__search ms-input',
+      placeholder: 'Search icons...',
+      'data-search-for': field,
+    });
+    controls.appendChild(searchInput);
+
+    container.appendChild(controls);
+
+    // Icon grid
+    const grid = createElement('div', { className: 'ms-icon-picker__grid', 'data-grid-for': field });
+
+    // Add "None" option
+    const noneBtn = createElement('button', {
+      type: 'button',
+      className: 'ms-icon-picker__btn ms-icon-picker__btn--none is-active',
+      'data-field': field,
+      'data-icon': '',
+      'data-category': 'all',
+      title: 'No icon',
+    });
+    noneBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    grid.appendChild(noneBtn);
+
+    // Add icon buttons
+    icons.forEach(icon => {
+      const btn = createElement('button', {
+        type: 'button',
+        className: 'ms-icon-picker__btn',
+        'data-field': field,
+        'data-icon': icon.value,
+        'data-category': icon.category,
+        'data-label': icon.label.toLowerCase(),
+        title: icon.label,
+      });
+      btn.innerHTML = `<i class="${icon.value}"></i>`;
+      grid.appendChild(btn);
+    });
+
+    container.appendChild(grid);
+
+    // Icon count indicator
+    const countIndicator = createElement('div', { className: 'ms-icon-picker__count', 'data-count-for': field }, [
+      `${icons.length} icons available`
+    ]);
+    container.appendChild(countIndicator);
+
+    return container;
+  }
+
+  _filterIcons(field, category, searchTerm) {
+    const grid = this.container.querySelector(`[data-grid-for="${field}"]`);
+    const countEl = this.container.querySelector(`[data-count-for="${field}"]`);
+    if (!grid) return;
+
+    const buttons = grid.querySelectorAll('.ms-icon-picker__btn:not(.ms-icon-picker__btn--none)');
+    let visibleCount = 0;
+
+    buttons.forEach(btn => {
+      const btnCategory = btn.dataset.category;
+      const btnLabel = btn.dataset.label || '';
+
+      const matchesCategory = category === 'all' || btnCategory === category;
+      const matchesSearch = !searchTerm || btnLabel.includes(searchTerm.toLowerCase());
+
+      if (matchesCategory && matchesSearch) {
+        btn.style.display = '';
+        visibleCount++;
+      } else {
+        btn.style.display = 'none';
+      }
+    });
+
+    if (countEl) {
+      countEl.textContent = `${visibleCount} icons shown`;
+    }
   }
 
   _initPreviewCounter() {
@@ -687,7 +832,29 @@ export class CounterConfigurator {
         this._updatePreview();
         this._markDirty();
       }
+
+      // Icon picker category filter
+      const categoryFor = e.target.dataset.categoryFor;
+      if (categoryFor) {
+        const searchInput = this.container.querySelector(`[data-search-for="${categoryFor}"]`);
+        const searchTerm = searchInput?.value || '';
+        this._filterIcons(categoryFor, e.target.value, searchTerm);
+      }
     });
+
+    // Icon picker search (with debounce)
+    const debouncedIconSearch = debounce((field, searchTerm) => {
+      const categorySelect = this.container.querySelector(`[data-category-for="${field}"]`);
+      const category = categorySelect?.value || 'all';
+      this._filterIcons(field, category, searchTerm);
+    }, 200);
+
+    this.container.addEventListener('input', e => {
+      const searchFor = e.target.dataset.searchFor;
+      if (searchFor) {
+        debouncedIconSearch(searchFor, e.target.value);
+      }
+    }, true);
 
     // Layout selector
     this.container.addEventListener('click', e => {
@@ -705,6 +872,40 @@ export class CounterConfigurator {
       if (featuredBtn) {
         this.state.featuredIndex = parseInt(featuredBtn.dataset.featured);
         this._updateFeaturedButtons();
+        this._updatePreview();
+        this._markDirty();
+      }
+
+      // Icon picker button
+      const iconBtn = e.target.closest('.ms-icon-picker__btn');
+      if (iconBtn) {
+        const field = iconBtn.dataset.field;
+        const icon = iconBtn.dataset.icon;
+
+        // Update active state for this icon picker group
+        const picker = iconBtn.closest('.ms-icon-picker');
+        picker.querySelectorAll('.ms-icon-picker__btn').forEach(b => b.classList.remove('is-active'));
+        iconBtn.classList.add('is-active');
+
+        // Update state
+        this.state[field] = icon;
+        this._updatePreview();
+        this._markDirty();
+      }
+
+      // Card color picker button
+      const colorBtn = e.target.closest('.ms-card-color-btn');
+      if (colorBtn) {
+        const field = colorBtn.dataset.field;
+        const color = colorBtn.dataset.color;
+
+        // Update active state for this color picker group
+        const picker = colorBtn.closest('.ms-card-color-picker');
+        picker.querySelectorAll('.ms-card-color-btn').forEach(b => b.classList.remove('is-active'));
+        colorBtn.classList.add('is-active');
+
+        // Update state
+        this.state[field] = color;
         this._updatePreview();
         this._markDirty();
       }
@@ -821,9 +1022,9 @@ export class CounterConfigurator {
       fgColor: '#374151',
       accentColor: '#6366f1',
       featuredIndex: 0,
-      valueColumn1: 'count_1', label1: '', prefix1: '', suffix1: '', format1: 'integer', icon1: '', staticValue1: '',
-      valueColumn2: 'count_2', label2: '', prefix2: '', suffix2: '', format2: 'integer', icon2: '', staticValue2: '',
-      valueColumn3: 'count_3', label3: '', prefix3: '', suffix3: '', format3: 'integer', icon3: '', staticValue3: '',
+      valueColumn1: 'count_1', label1: '', prefix1: '', suffix1: '', format1: 'integer', icon1: '', staticValue1: '', cardColor1: 'blue', cardTitle1: '', cardDescription1: '',
+      valueColumn2: 'count_2', label2: '', prefix2: '', suffix2: '', format2: 'integer', icon2: '', staticValue2: '', cardColor2: 'teal', cardTitle2: '', cardDescription2: '',
+      valueColumn3: 'count_3', label3: '', prefix3: '', suffix3: '', format3: 'integer', icon3: '', staticValue3: '', cardColor3: 'purple', cardTitle3: '', cardDescription3: '',
       data: null,
       columns: [],
     };
@@ -897,6 +1098,9 @@ export class CounterConfigurator {
         suffix: this.state[`suffix${i}`] || '',
         format: this.state[`format${i}`] || 'integer',
         icon: this.state[`icon${i}`] || '',
+        cardColor: this.state[`cardColor${i}`] || 'blue',
+        cardTitle: this.state[`cardTitle${i}`] || '',
+        cardDescription: this.state[`cardDescription${i}`] || '',
         featured: this.state.featuredIndex === (i - 1),
       });
     }
@@ -1091,6 +1295,30 @@ export class CounterConfigurator {
     this.container.querySelectorAll('.ms-layout-btn').forEach(btn => {
       btn.classList.toggle('is-active', btn.dataset.layout === this.state.layout);
     });
+
+    // Icon pickers
+    for (let i = 1; i <= 3; i++) {
+      const field = `icon${i}`;
+      const value = this.state[field] || '';
+      const picker = this.container.querySelector(`.ms-icon-picker [data-field="${field}"]`)?.closest('.ms-icon-picker');
+      if (picker) {
+        picker.querySelectorAll('.ms-icon-picker__btn').forEach(btn => {
+          btn.classList.toggle('is-active', btn.dataset.icon === value);
+        });
+      }
+    }
+
+    // Card color pickers
+    for (let i = 1; i <= 3; i++) {
+      const field = `cardColor${i}`;
+      const value = this.state[field] || 'blue';
+      const picker = this.container.querySelector(`[data-color-picker-for="${field}"]`);
+      if (picker) {
+        picker.querySelectorAll('.ms-card-color-btn').forEach(btn => {
+          btn.classList.toggle('is-active', btn.dataset.color === value);
+        });
+      }
+    }
 
     // Colors
     ['bgColor', 'fgColor', 'accentColor'].forEach(f => this._setColor(f, this.state[f]));

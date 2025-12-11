@@ -1,5 +1,6 @@
 // Counter Component Styles
 // ========================================
+// Dashboard Card Design - Full color backgrounds with icons
 @use '../variables' as *;
 
 // CSS Custom Properties for Counter
@@ -7,7 +8,24 @@
   --counter-bg: var(--ms-bg);
   --counter-fg: var(--ms-text);
   --counter-accent: var(--ms-primary);
+  --counter-card-bg: #3b82f6; // Default blue
 }
+
+// Preset card colors
+$card-colors: (
+  'blue': #3b82f6,
+  'teal': #14b8a6,
+  'olive': #84cc16,
+  'purple': #8b5cf6,
+  'red': #ef4444,
+  'pink': #ec4899,
+  'orange': #f97316,
+  'cyan': #06b6d4,
+  'emerald': #10b981,
+  'amber': #f59e0b,
+  'indigo': #6366f1,
+  'rose': #f43f5e,
+);
 
 // Main Counter Container
 .ms-counter {
@@ -26,7 +44,7 @@
   }
 }
 
-// Counter Title
+// Counter Title (overall widget title)
 .ms-counter__title {
   font-size: var(--ms-font-size-lg);
   font-weight: 600;
@@ -62,6 +80,245 @@
   }
 }
 
+// ========================================
+// Dashboard Card Item (New Design)
+// ========================================
+.ms-counter__item {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--ms-radius-lg);
+  overflow: hidden;
+  background: var(--ms-bg);
+  border: 1px solid var(--ms-border);
+  box-shadow: var(--ms-shadow-sm);
+  transition: all var(--ms-transition-base);
+
+  &:hover {
+    box-shadow: var(--ms-shadow-lg);
+    transform: translateY(-2px);
+  }
+}
+
+// Colored Header Section
+.ms-counter__card-header {
+  background: var(--counter-card-bg, #3b82f6);
+  color: white;
+  padding: var(--ms-space-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ms-space-md);
+  position: relative;
+  min-height: 100px;
+}
+
+// Checkbox in corner (optional)
+.ms-counter__checkbox {
+  position: absolute;
+  top: var(--ms-space-sm);
+  right: var(--ms-space-sm);
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// Icon with semi-transparent background
+.ms-counter__icon-wrapper {
+  flex-shrink: 0;
+}
+
+.ms-counter__icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ms-radius-lg);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 24px;
+
+  i {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+// Main content area in header
+.ms-counter__main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+// Primary label (small text above value)
+.ms-counter__label {
+  font-size: var(--ms-font-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+  margin-bottom: var(--ms-space-xs);
+  color: inherit;
+}
+
+// Primary value (large number)
+.ms-counter__value {
+  font-size: var(--ms-font-size-3xl);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: inherit;
+}
+
+// Secondary metrics row (e.g., Active | Inactive)
+.ms-counter__secondary {
+  display: flex;
+  gap: var(--ms-space-md);
+  margin-top: var(--ms-space-sm);
+  padding-top: var(--ms-space-sm);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ms-counter__secondary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &:not(:last-child) {
+    padding-right: var(--ms-space-md);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+.ms-counter__secondary-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.75;
+}
+
+.ms-counter__secondary-value {
+  font-size: var(--ms-font-size-sm);
+  font-weight: 600;
+}
+
+// Card footer (title and description)
+.ms-counter__card-footer {
+  padding: var(--ms-space-md) var(--ms-space-lg);
+  background: var(--ms-bg);
+  border-top: none;
+
+  [data-theme="dark"] & {
+    background: var(--ms-bg-secondary);
+  }
+}
+
+.ms-counter__card-title {
+  font-size: var(--ms-font-size-base);
+  font-weight: 600;
+  color: var(--ms-text);
+  margin: 0 0 var(--ms-space-xs);
+  line-height: 1.3;
+}
+
+.ms-counter__card-description {
+  font-size: var(--ms-font-size-xs);
+  color: var(--ms-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+// ========================================
+// Legacy Content wrapper (for backward compatibility)
+// ========================================
+.ms-counter__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-xs);
+}
+
+// Subtitle (optional)
+.ms-counter__subtitle {
+  font-size: var(--ms-font-size-xs);
+  color: var(--ms-text-muted);
+  line-height: 1.4;
+}
+
+// Trend Indicator
+.ms-counter__trend {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-xs);
+  margin-top: var(--ms-space-xs);
+  flex-wrap: wrap;
+}
+
+.ms-counter__trend-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--ms-radius-full);
+  font-size: var(--ms-font-size-xs);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+
+  // When outside colored header, use standard colors
+  .ms-counter__card-footer & {
+    background: var(--ms-bg-secondary);
+    color: var(--ms-text-secondary);
+  }
+
+  &--positive {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+
+    .ms-counter__card-footer & {
+      background: rgba(34, 197, 94, 0.1);
+      color: #16a34a;
+    }
+  }
+
+  &--negative {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+
+    .ms-counter__card-footer & {
+      background: rgba(239, 68, 68, 0.1);
+      color: #dc2626;
+    }
+  }
+}
+
+.ms-counter__trend-text {
+  font-size: var(--ms-font-size-xs);
+  opacity: 0.75;
+
+  .ms-counter__card-footer & {
+    color: var(--ms-text-muted);
+    opacity: 1;
+  }
+}
+
+// ========================================
+// Layout Variations
+// ========================================
+
 // Stack Layout (vertical list)
 .ms-counter--stack {
   .ms-counter__items {
@@ -79,7 +336,8 @@
     }
   }
 
-  .ms-counter__item {
+  .ms-counter__card-header {
+    min-height: 80px;
     padding: var(--ms-space-md) var(--ms-space-lg);
   }
 
@@ -87,10 +345,18 @@
     width: 44px;
     height: 44px;
 
+    i {
+      font-size: 20px;
+    }
+
     svg {
       width: 22px;
       height: 22px;
     }
+  }
+
+  .ms-counter__value {
+    font-size: var(--ms-font-size-2xl);
   }
 }
 
@@ -109,24 +375,22 @@
     }
   }
 
-  .ms-counter__item {
-    max-width: 100%;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: var(--ms-space-lg);
+  .ms-counter__card-header {
+    min-height: 90px;
+    padding: var(--ms-space-md);
   }
 
-  .ms-counter__content {
-    align-items: center;
+  .ms-counter__icon {
+    width: 40px;
+    height: 40px;
+
+    i {
+      font-size: 18px;
+    }
   }
 
-  .ms-counter__label {
-    text-align: center;
-  }
-
-  .ms-counter__trend {
-    justify-content: center;
+  .ms-counter__value {
+    font-size: var(--ms-font-size-xl);
   }
 }
 
@@ -142,13 +406,19 @@
   // Featured counter (always first in DOM order)
   .ms-counter__item--featured {
     flex: 2;
-    padding: var(--ms-space-xl);
-    border-color: var(--counter-accent);
-    border-width: 2px;
+
+    .ms-counter__card-header {
+      min-height: 120px;
+      padding: var(--ms-space-xl);
+    }
 
     .ms-counter__icon {
       width: 64px;
       height: 64px;
+
+      i {
+        font-size: 28px;
+      }
 
       svg {
         width: 32px;
@@ -157,22 +427,30 @@
     }
 
     .ms-counter__value {
-      font-size: var(--ms-font-size-3xl);
+      font-size: var(--ms-font-size-4xl);
     }
 
     .ms-counter__label {
-      font-size: var(--ms-font-size-base);
+      font-size: var(--ms-font-size-sm);
     }
   }
 
   // Non-featured counters
   .ms-counter__item:not(.ms-counter__item--featured) {
     flex: 1;
-    padding: var(--ms-space-md);
+
+    .ms-counter__card-header {
+      min-height: 90px;
+      padding: var(--ms-space-md);
+    }
 
     .ms-counter__icon {
       width: 40px;
       height: 40px;
+
+      i {
+        font-size: 18px;
+      }
 
       svg {
         width: 20px;
@@ -185,7 +463,7 @@
     }
 
     .ms-counter__label {
-      font-size: var(--ms-font-size-xs);
+      font-size: 10px;
     }
   }
 
@@ -220,12 +498,18 @@
   // Reset featured styling on mobile
   &.ms-counter--row-featured {
     .ms-counter__item--featured {
-      padding: var(--ms-space-lg);
-      border-width: 1px;
+      .ms-counter__card-header {
+        min-height: 100px;
+        padding: var(--ms-space-lg);
+      }
 
       .ms-counter__icon {
         width: 48px;
         height: 48px;
+
+        i {
+          font-size: 22px;
+        }
 
         svg {
           width: 24px;
@@ -262,161 +546,60 @@
   }
 }
 
-// Individual Counter Item (Card-based design)
-.ms-counter__item {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: var(--ms-space-md);
-  text-align: left;
-  padding: var(--ms-space-lg);
-  border-radius: var(--ms-radius-lg);
-  background: var(--ms-bg);
-  border: 1px solid var(--ms-border);
-  box-shadow: var(--ms-shadow-sm);
-  transition: all var(--ms-transition-base);
-
-  &:hover {
-    border-color: var(--ms-border-hover);
-    box-shadow: var(--ms-shadow-md);
-    transform: translateY(-2px);
-  }
-
-  [data-theme="dark"] & {
-    background: var(--ms-bg-secondary);
-    border-color: var(--ms-border);
-
-    &:hover {
-      border-color: var(--ms-border-hover);
-    }
-  }
-}
-
-// Icon Wrapper (colored background container)
-.ms-counter__icon-wrapper {
-  flex-shrink: 0;
-}
-
-// Counter Icon
-.ms-counter__icon {
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--ms-radius-lg);
-  background: var(--counter-icon-color, var(--counter-accent));
-  color: white;
-
-  svg {
-    width: 26px;
-    height: 26px;
-  }
-}
-
-// Content wrapper (holds label, value, trend)
-.ms-counter__content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ms-space-xs);
-}
-
-// Value Container
-.ms-counter__value-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--ms-space-xs);
-
-  .ms-counter--vertical & {
-    align-items: flex-start;
-    flex: 1;
-  }
-}
-
-// Counter Value
-.ms-counter__value {
-  font-size: var(--ms-font-size-2xl);
-  font-weight: 700;
-  color: var(--counter-fg);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-
-  .ms-counter--vertical &,
-  .ms-counter--stack & {
-    font-size: var(--ms-font-size-xl);
-  }
-}
-
-// Counter Label
-.ms-counter__label {
-  font-size: var(--ms-font-size-sm);
-  color: var(--ms-text-secondary);
-  font-weight: 500;
-  line-height: 1.3;
-  order: -1; // Put label at top
-}
-
-// Counter Subtitle
-.ms-counter__subtitle {
-  font-size: var(--ms-font-size-xs);
-  color: var(--ms-text-muted);
-  line-height: 1.4;
-}
-
-// Trend Indicator
-.ms-counter__trend {
-  display: flex;
-  align-items: center;
-  gap: var(--ms-space-xs);
-  margin-top: var(--ms-space-xs);
-  flex-wrap: wrap;
-}
-
-.ms-counter__trend-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: var(--ms-radius-full);
-  font-size: var(--ms-font-size-xs);
-  font-weight: 600;
-  background: var(--ms-bg-secondary);
-  color: var(--ms-text-secondary);
-
-  &--positive {
-    background: rgba(34, 197, 94, 0.1);
-    color: #16a34a;
-
-    [data-theme="dark"] & {
-      background: rgba(34, 197, 94, 0.15);
-      color: #4ade80;
-    }
-  }
-
-  &--negative {
-    background: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
-
-    [data-theme="dark"] & {
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-    }
-  }
-}
-
-.ms-counter__trend-text {
-  font-size: var(--ms-font-size-xs);
-  color: var(--ms-text-muted);
-}
-
 // Placeholder
 .ms-counter__placeholder {
   padding: var(--ms-space-xl);
   text-align: center;
   color: var(--ms-text-muted);
   font-style: italic;
+}
+
+// ========================================
+// Color Preset Classes
+// ========================================
+@each $name, $color in $card-colors {
+  .ms-counter__item--#{$name} {
+    .ms-counter__card-header {
+      background: $color;
+    }
+  }
+}
+
+// ========================================
+// Compact Mode (for dashboard grids)
+// ========================================
+.ms-counter--compact {
+  padding: var(--ms-space-md);
+
+  .ms-counter__items {
+    gap: var(--ms-space-md);
+  }
+
+  .ms-counter__card-header {
+    min-height: 80px;
+    padding: var(--ms-space-md);
+  }
+
+  .ms-counter__icon {
+    width: 40px;
+    height: 40px;
+
+    i {
+      font-size: 18px;
+    }
+  }
+
+  .ms-counter__value {
+    font-size: var(--ms-font-size-xl);
+  }
+
+  .ms-counter__card-footer {
+    padding: var(--ms-space-sm) var(--ms-space-md);
+  }
+
+  .ms-counter__card-title {
+    font-size: var(--ms-font-size-sm);
+  }
 }
 
 // ========================================
@@ -745,6 +928,52 @@
 }
 
 // ========================================
+// Card Color Picker
+// ========================================
+.ms-card-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-space-xs);
+  padding: var(--ms-space-sm);
+  background: var(--ms-bg-secondary);
+  border-radius: var(--ms-radius-md);
+  border: 1px solid var(--ms-border);
+}
+
+.ms-card-color-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ms-radius-sm);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--ms-transition-fast);
+  position: relative;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &.is-active {
+    border-color: var(--ms-text);
+    box-shadow: 0 0 0 2px var(--ms-bg), 0 0 0 4px var(--ms-text);
+  }
+
+  // Color swatches
+  &--blue { background: #3b82f6; }
+  &--teal { background: #14b8a6; }
+  &--olive { background: #84cc16; }
+  &--purple { background: #8b5cf6; }
+  &--red { background: #ef4444; }
+  &--pink { background: #ec4899; }
+  &--orange { background: #f97316; }
+  &--cyan { background: #06b6d4; }
+  &--emerald { background: #10b981; }
+  &--amber { background: #f59e0b; }
+  &--indigo { background: #6366f1; }
+  &--rose { background: #f43f5e; }
+}
+
+// ========================================
 // Featured Button (Counter Configurator)
 // ========================================
 .ms-featured-btn {
@@ -856,4 +1085,123 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+// ========================================
+// Icon Picker (Counter Configurator)
+// ========================================
+.ms-icon-picker {
+  &__controls {
+    display: flex;
+    gap: var(--ms-space-sm);
+    margin-bottom: var(--ms-space-sm);
+  }
+
+  &__category {
+    flex: 0 0 auto;
+    min-width: 140px;
+    font-size: var(--ms-font-size-xs);
+    padding: var(--ms-space-xs) var(--ms-space-sm);
+  }
+
+  &__search {
+    flex: 1;
+    font-size: var(--ms-font-size-xs);
+    padding: var(--ms-space-xs) var(--ms-space-sm);
+
+    &::placeholder {
+      color: var(--ms-text-muted);
+    }
+  }
+
+  &__grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: var(--ms-space-sm);
+    background: var(--ms-bg-secondary);
+    border-radius: var(--ms-radius-md);
+    border: 1px solid var(--ms-border);
+    max-height: 180px;
+    overflow-y: auto;
+
+    // Scrollbar styling
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--ms-border);
+      border-radius: 3px;
+
+      &:hover {
+        background: var(--ms-border-hover);
+      }
+    }
+  }
+
+  &__btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ms-bg);
+    border: 1px solid var(--ms-border);
+    border-radius: var(--ms-radius-sm);
+    cursor: pointer;
+    transition: all var(--ms-transition-fast);
+    color: var(--ms-text-secondary);
+    font-size: 14px;
+
+    i {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover {
+      border-color: var(--ms-primary);
+      background: var(--ms-bg);
+      color: var(--ms-primary);
+      transform: scale(1.1);
+    }
+
+    &.is-active {
+      border-color: var(--ms-primary);
+      background: var(--ms-primary);
+      color: white;
+
+      &.ms-icon-picker__btn--none {
+        background: var(--ms-bg-tertiary);
+        border-color: var(--ms-text-muted);
+        color: var(--ms-text-muted);
+      }
+    }
+
+    &--none {
+      background: var(--ms-bg-tertiary);
+
+      i {
+        font-size: 12px;
+        opacity: 0.6;
+      }
+    }
+  }
+
+  &__count {
+    margin-top: var(--ms-space-xs);
+    font-size: var(--ms-font-size-xs);
+    color: var(--ms-text-muted);
+    text-align: right;
+  }
 }

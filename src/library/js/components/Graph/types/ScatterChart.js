@@ -1,23 +1,18 @@
 /**
- * Line Chart Configuration Generator
+ * Scatter Chart Configuration Generator
  */
 
 /**
- * Default line chart options
+ * Default scatter chart options
  */
 const defaultOptions = {
   title: '',
   subtitle: '',
   showLegend: true,
-  legendPosition: 'top', // 'top', 'bottom', 'left', 'right'
+  legendPosition: 'top',
+  symbolSize: 10,
   showLabels: false,
   labelPosition: 'top',
-  smooth: false, // Smooth curves
-  showArea: false, // Fill area under line
-  areaOpacity: 0.3,
-  lineWidth: 2,
-  showSymbol: true, // Show data points
-  symbolSize: 6,
   animation: true,
   animationDuration: 1000,
   tooltip: true,
@@ -31,55 +26,41 @@ const defaultOptions = {
 };
 
 /**
- * Generate ECharts configuration for line chart
- * Note: Colors, text styles, axis styles are handled by ECharts themes.
+ * Generate ECharts configuration for scatter chart
+ * Note: Colors are handled by ECharts themes.
+ * @param {Object} options - Chart options
+ * @param {Array} options.data - Data array: [[x1,y1], [x2,y2]] or [[[x,y]...], [[x,y]...]] for multiple series
+ * @param {Array} options.seriesNames - Names for each series
+ * @param {string} options.xAxis.name - X-axis label
+ * @param {string} options.yAxis.name - Y-axis label
  */
-export function generateLineConfig(options = {}) {
+export function generateScatterConfig(options = {}) {
   const opts = { ...defaultOptions, ...options };
 
   // Build series data - let theme handle colors
   let seriesData = [];
 
   if (Array.isArray(opts.data)) {
-    if (opts.data.length > 0 && Array.isArray(opts.data[0])) {
-      // Multiple series
+    if (opts.data.length > 0 && Array.isArray(opts.data[0]) && Array.isArray(opts.data[0][0])) {
+      // Multiple series: [[[x,y], [x,y]], [[x,y], [x,y]]]
       seriesData = opts.data.map((data, index) => ({
         name: opts.seriesNames?.[index] || `Series ${index + 1}`,
-        type: 'line',
+        type: 'scatter',
         data: data,
-        smooth: opts.smooth,
-        lineStyle: {
-          width: opts.lineWidth,
-        },
-        areaStyle: opts.showArea
-          ? {
-              opacity: opts.areaOpacity,
-            }
-          : undefined,
-        symbol: opts.showSymbol ? 'circle' : 'none',
         symbolSize: opts.symbolSize,
         label: {
           show: opts.showLabels,
           position: opts.labelPosition,
+          formatter: '{@[0]}, {@[1]}',
         },
       }));
     } else {
-      // Single series
+      // Single series: [[x,y], [x,y]]
       seriesData = [
         {
           name: opts.seriesNames?.[0] || opts.title || 'Data',
-          type: 'line',
+          type: 'scatter',
           data: opts.data,
-          smooth: opts.smooth,
-          lineStyle: {
-            width: opts.lineWidth,
-          },
-          areaStyle: opts.showArea
-            ? {
-                opacity: opts.areaOpacity,
-              }
-            : undefined,
-          symbol: opts.showSymbol ? 'circle' : 'none',
           symbolSize: opts.symbolSize,
           label: {
             show: opts.showLabels,
@@ -89,33 +70,6 @@ export function generateLineConfig(options = {}) {
       ];
     }
   }
-
-  // Build axis configurations - let theme handle colors
-  const categoryAxis = {
-    type: 'category',
-    data: opts.xAxis?.data || [],
-    boundaryGap: false, // Line starts from edge
-    axisLabel: {
-      rotate: opts.xAxis?.rotate || 0,
-      interval: opts.xAxis?.interval ?? 'auto',
-    },
-    axisTick: {
-      alignWithLabel: true,
-    },
-  };
-
-  const valueAxis = {
-    type: 'value',
-    name: opts.yAxis?.name || '',
-    axisLabel: {
-      formatter: opts.yAxis?.formatter || undefined,
-    },
-    splitLine: {
-      lineStyle: {
-        type: 'dashed',
-      },
-    },
-  };
 
   // Build complete ECharts configuration
   // Theme handles: colors, backgroundColor, textStyle, axis colors, tooltip styling
@@ -127,7 +81,10 @@ export function generateLineConfig(options = {}) {
     },
     tooltip: opts.tooltip
       ? {
-          trigger: 'axis',
+          trigger: 'item',
+          formatter: (params) => {
+            return `${params.seriesName}<br/>X: ${params.value[0]}<br/>Y: ${params.value[1]}`;
+          },
         }
       : { show: false },
     legend: opts.showLegend
@@ -145,8 +102,24 @@ export function generateLineConfig(options = {}) {
         }
       : { show: false },
     grid: opts.grid,
-    xAxis: categoryAxis,
-    yAxis: valueAxis,
+    xAxis: {
+      type: 'value',
+      name: opts.xAxis?.name || '',
+      splitLine: {
+        lineStyle: {
+          type: 'dashed',
+        },
+      },
+    },
+    yAxis: {
+      type: 'value',
+      name: opts.yAxis?.name || '',
+      splitLine: {
+        lineStyle: {
+          type: 'dashed',
+        },
+      },
+    },
     series: seriesData,
     animation: opts.animation,
     animationDuration: opts.animationDuration,
@@ -156,4 +129,4 @@ export function generateLineConfig(options = {}) {
   return config;
 }
 
-export default generateLineConfig;
+export default generateScatterConfig;

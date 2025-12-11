@@ -6,6 +6,12 @@
 import { generateBarConfig } from './BarChart.js';
 import { generateLineConfig } from './LineChart.js';
 import { generatePieConfig } from './PieChart.js';
+import { generateScatterConfig } from './ScatterChart.js';
+import { generateRadarConfig } from './RadarChart.js';
+import { generateHeatmapConfig } from './HeatmapChart.js';
+import { generateCandlestickConfig } from './CandlestickChart.js';
+import { generateFunnelConfig } from './FunnelChart.js';
+import { generateGaugeConfig } from './GaugeChart.js';
 
 /**
  * Available chart types and their config generators
@@ -30,6 +36,30 @@ const chartTypes = {
   area: {
     name: 'Area Chart',
     generator: (options) => generateLineConfig({ ...options, showArea: true }),
+  },
+  scatter: {
+    name: 'Scatter Chart',
+    generator: generateScatterConfig,
+  },
+  radar: {
+    name: 'Radar Chart',
+    generator: generateRadarConfig,
+  },
+  heatmap: {
+    name: 'Heatmap',
+    generator: generateHeatmapConfig,
+  },
+  candlestick: {
+    name: 'Candlestick Chart',
+    generator: generateCandlestickConfig,
+  },
+  funnel: {
+    name: 'Funnel Chart',
+    generator: generateFunnelConfig,
+  },
+  gauge: {
+    name: 'Gauge Chart',
+    generator: generateGaugeConfig,
   },
 };
 

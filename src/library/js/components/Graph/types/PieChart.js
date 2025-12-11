@@ -2,21 +2,6 @@
  * Pie Chart Configuration Generator
  */
 
-import { defaultColors } from '../utils.js';
-
-/**
- * Get current theme colors from CSS variables
- */
-function getThemeColors() {
-  const style = getComputedStyle(document.documentElement);
-  return {
-    text: style.getPropertyValue('--ms-text').trim() || '#1e293b',
-    textSecondary: style.getPropertyValue('--ms-text-secondary').trim() || '#64748b',
-    border: style.getPropertyValue('--ms-border').trim() || '#e2e8f0',
-    bg: style.getPropertyValue('--ms-bg').trim() || '#ffffff',
-  };
-}
-
 /**
  * Default pie chart options
  */
@@ -27,7 +12,6 @@ const defaultOptions = {
   legendPosition: 'right', // 'top', 'bottom', 'left', 'right'
   showLabels: true,
   labelPosition: 'outside', // 'outside', 'inside', 'center'
-  colors: defaultColors,
   donut: false, // Whether to show as donut chart
   donutRadius: '50%', // Inner radius for donut
   radius: '70%', // Outer radius
@@ -40,23 +24,22 @@ const defaultOptions = {
 
 /**
  * Generate ECharts configuration for pie chart
+ * Note: Colors, text styles are handled by ECharts themes.
  */
 export function generatePieConfig(options = {}) {
   const opts = { ...defaultOptions, ...options };
-  const theme = getThemeColors();
 
   // Build pie data from provided data
   // Expects data in format: [{ name: 'A', value: 10 }, ...] or transforms from arrays
+  // Don't set colors - let theme handle it
   let pieData = [];
 
   if (Array.isArray(opts.data)) {
     if (opts.data.length > 0 && typeof opts.data[0] === 'object' && 'name' in opts.data[0]) {
       // Already in correct format
-      pieData = opts.data.map((item, index) => ({
-        ...item,
-        itemStyle: {
-          color: opts.colors[index % opts.colors.length],
-        },
+      pieData = opts.data.map((item) => ({
+        name: item.name,
+        value: item.value,
       }));
     } else {
       // Convert from simple array using xAxis labels
@@ -64,9 +47,6 @@ export function generatePieConfig(options = {}) {
       pieData = opts.data.map((value, index) => ({
         name: labels[index] || `Item ${index + 1}`,
         value: value,
-        itemStyle: {
-          color: opts.colors[index % opts.colors.length],
-        },
       }));
     }
   }
@@ -74,12 +54,11 @@ export function generatePieConfig(options = {}) {
   // Calculate radius based on donut option
   const radius = opts.donut ? [opts.donutRadius, opts.radius] : opts.radius;
 
-  // Build label configuration
+  // Build label configuration - let theme handle colors
   const labelConfig = {
     show: opts.showLabels,
     position: opts.labelPosition,
     formatter: opts.labelPosition === 'inside' ? '{d}%' : '{b}: {d}%',
-    color: opts.labelPosition === 'inside' ? '#fff' : theme.text,
     fontSize: 12,
   };
 
@@ -95,9 +74,6 @@ export function generatePieConfig(options = {}) {
       label: labelConfig,
       labelLine: {
         show: opts.showLabels && opts.labelPosition === 'outside',
-        lineStyle: {
-          color: theme.border,
-        },
       },
       emphasis: opts.emphasis
         ? {
@@ -115,13 +91,12 @@ export function generatePieConfig(options = {}) {
         : undefined,
       itemStyle: {
         borderRadius: opts.donut ? 4 : 0,
-        borderColor: theme.bg,
         borderWidth: 2,
       },
     },
   ];
 
-  // Build legend configuration
+  // Build legend configuration - let theme handle colors
   const legendConfig = opts.showLegend
     ? {
         show: true,
@@ -138,9 +113,6 @@ export function generatePieConfig(options = {}) {
               ? 'auto'
               : 'middle',
         bottom: opts.legendPosition === 'bottom' ? 10 : 'auto',
-        textStyle: {
-          color: theme.text,
-        },
         formatter: (name) => {
           // Truncate long names
           return name.length > 15 ? name.substring(0, 15) + '...' : name;
@@ -149,31 +121,17 @@ export function generatePieConfig(options = {}) {
     : { show: false };
 
   // Build complete ECharts configuration
+  // Theme handles: colors, backgroundColor, textStyle, tooltip styling
   const config = {
     title: {
       text: opts.title,
       subtext: opts.subtitle,
       left: 'center',
-      textStyle: {
-        fontSize: 16,
-        fontWeight: 600,
-        color: theme.text,
-      },
-      subtextStyle: {
-        fontSize: 12,
-        color: theme.textSecondary,
-      },
     },
     tooltip: opts.tooltip
       ? {
           trigger: 'item',
           formatter: '{b}: {c} ({d}%)',
-          backgroundColor: theme.bg,
-          borderColor: theme.border,
-          borderWidth: 1,
-          textStyle: {
-            color: theme.text,
-          },
         }
       : { show: false },
     legend: legendConfig,
