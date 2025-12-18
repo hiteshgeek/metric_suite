@@ -167,8 +167,8 @@ export class PreviewPanel {
   }
 
   _bindEvents() {
-    // Screenshot button
-    const screenshotBtn = document.getElementById('ms-screenshot-btn');
+    // Screenshot button - scope to this container
+    const screenshotBtn = this.container.querySelector('#ms-screenshot-btn');
     if (screenshotBtn) {
       screenshotBtn.addEventListener('click', () => {
         if (this.options.onScreenshot) {
@@ -177,8 +177,8 @@ export class PreviewPanel {
       });
     }
 
-    // Screenshot dropdown toggle
-    const toggleBtn = document.getElementById('ms-screenshot-toggle');
+    // Screenshot dropdown toggle - scope to this container
+    const toggleBtn = this.container.querySelector('#ms-screenshot-toggle');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -188,27 +188,28 @@ export class PreviewPanel {
 
     // Close dropdown on outside click
     document.addEventListener('click', (e) => {
-      if (!e.target.closest('#ms-screenshot')) {
+      const screenshot = this.container.querySelector('#ms-screenshot');
+      if (screenshot && !screenshot.contains(e.target)) {
         this._closeDropdown();
       }
     });
 
-    // Export buttons
-    document.getElementById('ms-export-html-btn')?.addEventListener('click', () => {
+    // Export buttons - scope to this container
+    this.container.querySelector('#ms-export-html-btn')?.addEventListener('click', () => {
       if (this.options.onExportHTML) this.options.onExportHTML();
     });
 
-    document.getElementById('ms-export-js-btn')?.addEventListener('click', () => {
+    this.container.querySelector('#ms-export-js-btn')?.addEventListener('click', () => {
       if (this.options.onExportJS) this.options.onExportJS();
     });
 
-    document.getElementById('ms-export-json-btn')?.addEventListener('click', () => {
+    this.container.querySelector('#ms-export-json-btn')?.addEventListener('click', () => {
       if (this.options.onExportJSON) this.options.onExportJSON();
     });
   }
 
   _toggleDropdown() {
-    const dropdown = document.getElementById('ms-screenshot-dropdown');
+    const dropdown = this.container.querySelector('#ms-screenshot-dropdown');
     if (dropdown) {
       this.screenshotDropdownOpen = !this.screenshotDropdownOpen;
       dropdown.classList.toggle('is-open', this.screenshotDropdownOpen);
@@ -216,7 +217,7 @@ export class PreviewPanel {
   }
 
   _closeDropdown() {
-    const dropdown = document.getElementById('ms-screenshot-dropdown');
+    const dropdown = this.container.querySelector('#ms-screenshot-dropdown');
     if (dropdown) {
       this.screenshotDropdownOpen = false;
       dropdown.classList.remove('is-open');
@@ -224,7 +225,7 @@ export class PreviewPanel {
   }
 
   setTitle(title) {
-    const nameEl = document.getElementById('ms-preview-name');
+    const nameEl = this.container.querySelector('#ms-preview-name');
     if (nameEl) {
       nameEl.textContent = title || this.options.title;
     }
@@ -232,14 +233,14 @@ export class PreviewPanel {
 
   setThumbnail(hasThumbnail) {
     this.hasThumbnail = hasThumbnail;
-    const actions = document.getElementById('ms-thumbnail-actions');
+    const actions = this.container.querySelector('#ms-thumbnail-actions');
     if (actions) {
       actions.style.display = hasThumbnail ? 'block' : 'none';
     }
   }
 
   getContentElement() {
-    return document.getElementById('ms-preview-content');
+    return this.container.querySelector('#ms-preview-content');
   }
 
   destroy() {

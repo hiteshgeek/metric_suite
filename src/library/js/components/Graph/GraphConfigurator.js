@@ -2829,13 +2829,16 @@ export class GraphConfigurator {
    * Bind screenshot button and modal events
    */
   _bindScreenshot() {
-    const screenshotBtn = document.getElementById('ms-screenshot-btn');
-    const toggleBtn = document.getElementById('ms-screenshot-toggle');
-    const dropdown = document.getElementById('ms-screenshot-dropdown');
+    // Use container-scoped queries to avoid conflicts with other instances
+    const screenshotBtn = this.container.querySelector('#ms-screenshot-btn');
+    const toggleBtn = this.container.querySelector('#ms-screenshot-toggle');
+    const dropdown = this.container.querySelector('#ms-screenshot-dropdown');
 
     // Apply saved settings to checkboxes
-    document.getElementById('ms-screenshot-download').checked = this.screenshotSettings.download;
-    document.getElementById('ms-screenshot-show-preview').checked = this.screenshotSettings.preview;
+    const downloadCheckbox = this.container.querySelector('#ms-screenshot-download');
+    const previewCheckbox = this.container.querySelector('#ms-screenshot-show-preview');
+    if (downloadCheckbox) downloadCheckbox.checked = this.screenshotSettings.download;
+    if (previewCheckbox) previewCheckbox.checked = this.screenshotSettings.preview;
 
     // Main screenshot button
     screenshotBtn?.addEventListener('click', () => {
@@ -2850,23 +2853,27 @@ export class GraphConfigurator {
 
     // Close dropdown on outside click
     document.addEventListener('click', (e) => {
-      if (!e.target.closest('.ms-screenshot')) {
+      const screenshot = this.container.querySelector('.ms-screenshot');
+      if (screenshot && !screenshot.contains(e.target)) {
         dropdown?.classList.remove('is-open');
       }
     });
 
     // Save settings on change
-    ['ms-screenshot-download', 'ms-screenshot-show-preview'].forEach(id => {
-      const checkbox = document.getElementById(id);
-      checkbox?.addEventListener('change', () => {
-        this.screenshotSettings.download = document.getElementById('ms-screenshot-download').checked;
-        this.screenshotSettings.preview = document.getElementById('ms-screenshot-show-preview').checked;
-        localStorage.setItem('ms-screenshot-settings', JSON.stringify(this.screenshotSettings));
-      });
+    downloadCheckbox?.addEventListener('change', () => {
+      this.screenshotSettings.download = downloadCheckbox.checked;
+      this.screenshotSettings.preview = previewCheckbox?.checked || false;
+      localStorage.setItem('ms-screenshot-settings', JSON.stringify(this.screenshotSettings));
+    });
+
+    previewCheckbox?.addEventListener('change', () => {
+      this.screenshotSettings.download = downloadCheckbox?.checked || false;
+      this.screenshotSettings.preview = previewCheckbox.checked;
+      localStorage.setItem('ms-screenshot-settings', JSON.stringify(this.screenshotSettings));
     });
 
     // View thumbnail button
-    document.getElementById('ms-thumbnail-view')?.addEventListener('click', () => {
+    this.container.querySelector('#ms-thumbnail-view')?.addEventListener('click', () => {
       if (this.currentThumbnail) {
         this._showScreenshotModal(this.currentThumbnail);
       }
@@ -2874,7 +2881,7 @@ export class GraphConfigurator {
     });
 
     // Delete thumbnail button
-    document.getElementById('ms-thumbnail-delete')?.addEventListener('click', async () => {
+    this.container.querySelector('#ms-thumbnail-delete')?.addEventListener('click', async () => {
       if (this.state.id && this.currentThumbnail) {
         await this._deleteThumbnail();
       }

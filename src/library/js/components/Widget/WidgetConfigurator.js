@@ -4,7 +4,7 @@
  */
 
 import { WIDGET_TYPES, WIDGET_CATEGORIES } from './constants.js';
-import { WidgetFactory } from './index.js';
+import { WidgetFactory } from './WidgetFactory.js';
 
 /**
  * Widget configuration schemas for each widget type

@@ -124,7 +124,9 @@ function addAllScriptsESM() {
       plugins: [
         rollupReplace({
           preventAssignment: true,
-          'process.env.NODE_ENV': JSON.stringify(isProduction() ? 'production' : 'development'),
+          "process.env.NODE_ENV": JSON.stringify(
+            isProduction() ? "production" : "development"
+          ),
         }),
         rollupResolve({ browser: true }),
         rollupCommonjs(),
@@ -170,7 +172,9 @@ function addAllScriptsIIFE() {
       plugins: [
         rollupReplace({
           preventAssignment: true,
-          'process.env.NODE_ENV': JSON.stringify(isProduction() ? 'production' : 'development'),
+          "process.env.NODE_ENV": JSON.stringify(
+            isProduction() ? "production" : "development"
+          ),
         }),
         rollupResolve({ browser: true }),
         rollupCommonjs(),
@@ -260,10 +264,14 @@ gulp.task("watch", function () {
 });
 
 // Default and dev/prod tasks (must be last)
+gulp.task("dev", gulp.series("clean", "styles-clean", "scripts-clean"));
+
+// Default and dev/prod tasks (must be last)
 gulp.task(
-  "dev",
+  "dev-with-watch",
   gulp.series("clean", "styles-clean", "scripts-clean", "watch")
 );
+
 // Prod task: set NODE_ENV and run the full clean/build without sourcemaps
 gulp.task(
   "prod",

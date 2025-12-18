@@ -4,7 +4,8 @@
  */
 
 import { WIDGET_TYPES } from './constants.js';
-import { Widget, WidgetFactory } from './index.js';
+import { Widget } from './Widget.js';
+import { WidgetFactory } from './WidgetFactory.js';
 import { generateId, debounce } from '../Graph/utils.js';
 
 /**
